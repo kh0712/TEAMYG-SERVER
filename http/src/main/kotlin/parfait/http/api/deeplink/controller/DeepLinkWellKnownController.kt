@@ -59,7 +59,7 @@ class DeepLinkWellKnownController(
         return listOf(
             linkedMapOf(
                 "appID" to "$iosTeamId.$iosBundleId",
-                "paths" to listOf("/link", "/link/*"),
+                "paths" to listOf("/link"),
             ),
         )
     }
