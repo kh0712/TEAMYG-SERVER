@@ -13,9 +13,19 @@ import java.nio.charset.StandardCharsets
 class GetDownloadStoreLinkService(
     @Value("\${deeplink.android.package-name}") private val androidPackageName: String,
     @Value("\${deeplink.ios.app-store-id:}") private val iosAppStoreId: String,
+    @Value("\${landing.domain}") private val linkDomain: String,
 ) : GetDownloadStoreLinkUseCase {
     override fun getDownloadLink(command: GetDownloadStoreLinkCommand): DownloadStoreLinkResult {
         val platform = Platform.fromUserAgent(command.userAgent)
+        // 카카오톡 인앱 브라우저는 App Links/Universal Links를 시스템에 넘기지 않으므로 외부 브라우저로 먼저 보낸다.
+        // 외부 브라우저의 요청에는 KAKAOTALK UA가 없어 아래 스토어 분기로 가므로 리다이렉트 루프가 생기지 않는다.
+        if (isKakaoTalkInAppBrowser(command.userAgent)) {
+            return DownloadStoreLinkResult(
+                platform = platform,
+                redirectUrl = buildKakaoTalkOpenExternalUrl(command.originalQueryString),
+                inAppBrowser = true,
+            )
+        }
         val redirectUrl =
             when (platform) {
                 Platform.ANDROID -> buildPlayStoreUrl(command.originalQueryString)
@@ -23,6 +33,15 @@ class GetDownloadStoreLinkService(
                 Platform.OTHER -> null
             }
         return DownloadStoreLinkResult(platform = platform, redirectUrl = redirectUrl)
+    }
+
+    private fun isKakaoTalkInAppBrowser(userAgent: String?): Boolean =
+        userAgent?.contains("KAKAOTALK", ignoreCase = true) == true
+
+    private fun buildKakaoTalkOpenExternalUrl(originalQueryString: String?): String {
+        val query = originalQueryString?.takeIf { it.isNotBlank() }?.let { "?$it" }.orEmpty()
+        val originalLink = "https://$linkDomain/link$query"
+        return "kakaotalk://web/openExternal?url=${URLEncoder.encode(originalLink, StandardCharsets.UTF_8)}"
     }
 
     // Play Store가 설치 후 첫 실행 시 Install Referrer API로 그대로 넘겨주는 값이다.
