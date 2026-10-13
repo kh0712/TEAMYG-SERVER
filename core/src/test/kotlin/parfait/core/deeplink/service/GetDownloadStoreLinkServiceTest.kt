@@ -125,7 +125,7 @@ class GetDownloadStoreLinkServiceTest {
                 ),
             )
 
-        result.inAppBrowser shouldBe true
+        result.isInAppBrowser shouldBe true
         result.platform shouldBe Platform.ANDROID
         result.redirectUrl shouldBe
             "kakaotalk://web/openExternal?url=https%3A%2F%2Fparfait-app.store%2Flink%3FinviteCode%3DABC123"
@@ -148,13 +148,13 @@ class GetDownloadStoreLinkServiceTest {
                 ),
             )
 
-        result.inAppBrowser shouldBe true
+        result.isInAppBrowser shouldBe true
         result.platform shouldBe Platform.IOS
         result.redirectUrl shouldBe "kakaotalk://web/openExternal?url=https%3A%2F%2Fparfait-app.store%2Flink"
     }
 
     @Test
-    fun `카카오톡 UA가 아니면 inAppBrowser가 false이고 기존 스토어 분기를 탄다`() {
+    fun `카카오톡 UA가 아니면 isInAppBrowser가 false이고 기존 스토어 분기를 탄다`() {
         val service =
             GetDownloadStoreLinkService(
                 androidPackageName = "com.teamyg.parfait",
@@ -170,7 +170,7 @@ class GetDownloadStoreLinkServiceTest {
                 ),
             )
 
-        result.inAppBrowser shouldBe false
+        result.isInAppBrowser shouldBe false
         result.redirectUrl shouldBe
             "https://play.google.com/store/apps/details?id=com.teamyg.parfait&referrer=inviteCode%3DABC123"
     }

@@ -37,7 +37,7 @@ class DeepLinkFallbackController(
             DeepLinkFallbackPageRenderer.render(
                 platform = result.platform,
                 redirectUrl = result.redirectUrl,
-                inAppBrowser = result.inAppBrowser,
+                isInAppBrowser = result.isInAppBrowser,
             )
 
         return ResponseEntity

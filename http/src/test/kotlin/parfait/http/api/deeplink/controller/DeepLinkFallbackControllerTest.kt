@@ -84,7 +84,7 @@ class DeepLinkFallbackControllerTest {
             DownloadStoreLinkResult(
                 platform = Platform.ANDROID,
                 redirectUrl = OPEN_EXTERNAL_URL,
-                inAppBrowser = true,
+                isInAppBrowser = true,
             )
 
         val response =

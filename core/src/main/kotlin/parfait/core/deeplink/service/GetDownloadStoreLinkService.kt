@@ -21,7 +21,7 @@ class GetDownloadStoreLinkService(
             return DownloadStoreLinkResult(
                 platform = platform,
                 redirectUrl = buildKakaoTalkOpenExternalUrl(command.originalQueryString),
-                inAppBrowser = true,
+                isInAppBrowser = true,
             )
         }
         val redirectUrl =

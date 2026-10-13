@@ -16,5 +16,5 @@ data class GetDownloadStoreLinkCommand(
 data class DownloadStoreLinkResult(
     val platform: Platform,
     val redirectUrl: String?,
-    val inAppBrowser: Boolean = false,
+    val isInAppBrowser: Boolean = false,
 )
