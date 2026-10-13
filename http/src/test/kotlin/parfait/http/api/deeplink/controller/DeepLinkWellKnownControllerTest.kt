@@ -54,4 +54,14 @@ class DeepLinkWellKnownControllerTest {
                 jsonPath("$.applinks.details[0].paths[0]") { value("/link") }
             }
     }
+
+    @Test
+    fun `apple-app-site-association은 허용 경로를 하위 경로 없이 link 하나로 한정한다`() {
+        mockMvc
+            .get("/.well-known/apple-app-site-association")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.applinks.details[0].paths.length()") { value(1) }
+            }
+    }
 }
