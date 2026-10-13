@@ -17,8 +17,6 @@ class GetDownloadStoreLinkService(
 ) : GetDownloadStoreLinkUseCase {
     override fun getDownloadLink(command: GetDownloadStoreLinkCommand): DownloadStoreLinkResult {
         val platform = Platform.fromUserAgent(command.userAgent)
-        // 카카오톡 인앱 브라우저는 App Links/Universal Links를 시스템에 넘기지 않으므로 외부 브라우저로 먼저 보낸다.
-        // 외부 브라우저의 요청에는 KAKAOTALK UA가 없어 아래 스토어 분기로 가므로 리다이렉트 루프가 생기지 않는다.
         if (isKakaoTalkInAppBrowser(command.userAgent)) {
             return DownloadStoreLinkResult(
                 platform = platform,
