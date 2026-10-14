@@ -77,4 +77,33 @@ class DeepLinkFallbackControllerTest {
         command.userAgent shouldBe "Android"
         command.originalQueryString shouldBe "link_id=abc&campaign=summer"
     }
+
+    @Test
+    fun `카카오톡 인앱 브라우저면 외부 브라우저 전환 URL과 안내 문구를 응답한다`() {
+        fakeUseCase.result =
+            DownloadStoreLinkResult(
+                platform = Platform.ANDROID,
+                redirectUrl = OPEN_EXTERNAL_URL,
+                isInAppBrowser = true,
+            )
+
+        val response =
+            mockMvc
+                .get("/link?inviteCode=ABC123") {
+                    header("User-Agent", "Mozilla/5.0 (Linux; Android 14) KAKAOTALK 2511290")
+                }.andExpect {
+                    status { isOk() }
+                }.andReturn()
+                .response
+                .contentAsString
+
+        response shouldContain
+            "kakaotalk://web/openExternal?url=https%3A%2F%2Fparfait-app.store%2Flink%3FinviteCode%3DABC123"
+        response shouldContain "외부 브라우저로 이동 중입니다"
+    }
+
+    private companion object {
+        const val OPEN_EXTERNAL_URL =
+            "kakaotalk://web/openExternal?url=https%3A%2F%2Fparfait-app.store%2Flink%3FinviteCode%3DABC123"
+    }
 }
