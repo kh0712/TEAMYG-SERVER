@@ -9,10 +9,13 @@ object DeepLinkFallbackPageRenderer {
     fun render(
         platform: Platform,
         redirectUrl: String?,
+        isInAppBrowser: Boolean = false,
     ): String {
         val pageParams = buildPageParams(platform, redirectUrl)
         val paramsJson = escapeForInlineScript(objectMapper.writeValueAsString(pageParams))
         val fallbackHref = redirectUrl?.let(::escapeHtmlAttribute) ?: "#"
+        val message = if (isInAppBrowser) "외부 브라우저로 이동 중입니다..." else "앱으로 이동 중입니다..."
+        val linkLabel = if (isInAppBrowser) "외부 브라우저로 열기" else "스토어로 이동하기"
 
         // TODO: 디자인 적용 예정 (현재는 최소한의 스타일만 적용된 임시 페이지)
         return """
@@ -51,8 +54,8 @@ object DeepLinkFallbackPageRenderer {
             |</head>
             |<body>
             |  <div class="spinner"></div>
-            |  <p>앱으로 이동 중입니다...</p>
-            |  <p><a id="fallback-link" href="$fallbackHref">스토어로 이동하기</a></p>
+            |  <p>$message</p>
+            |  <p><a id="fallback-link" href="$fallbackHref">$linkLabel</a></p>
             |  <script>
             |    (function () {
             |      var params = $paramsJson;

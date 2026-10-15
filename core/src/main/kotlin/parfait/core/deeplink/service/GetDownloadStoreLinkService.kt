@@ -13,9 +13,17 @@ import java.nio.charset.StandardCharsets
 class GetDownloadStoreLinkService(
     @Value("\${deeplink.android.package-name}") private val androidPackageName: String,
     @Value("\${deeplink.ios.app-store-id:}") private val iosAppStoreId: String,
+    @Value("\${landing.domain}") private val linkDomain: String,
 ) : GetDownloadStoreLinkUseCase {
     override fun getDownloadLink(command: GetDownloadStoreLinkCommand): DownloadStoreLinkResult {
         val platform = Platform.fromUserAgent(command.userAgent)
+        if (isKakaoTalkInAppBrowser(command.userAgent)) {
+            return DownloadStoreLinkResult(
+                platform = platform,
+                redirectUrl = buildKakaoTalkOpenExternalUrl(command.originalQueryString),
+                isInAppBrowser = true,
+            )
+        }
         val redirectUrl =
             when (platform) {
                 Platform.ANDROID -> buildPlayStoreUrl(command.originalQueryString)
@@ -23,6 +31,15 @@ class GetDownloadStoreLinkService(
                 Platform.OTHER -> null
             }
         return DownloadStoreLinkResult(platform = platform, redirectUrl = redirectUrl)
+    }
+
+    private fun isKakaoTalkInAppBrowser(userAgent: String?): Boolean =
+        userAgent?.contains("KAKAOTALK", ignoreCase = true) == true
+
+    private fun buildKakaoTalkOpenExternalUrl(originalQueryString: String?): String {
+        val query = originalQueryString?.takeIf { it.isNotBlank() }?.let { "?$it" }.orEmpty()
+        val originalLink = "https://$linkDomain/link$query"
+        return "kakaotalk://web/openExternal?url=${URLEncoder.encode(originalLink, StandardCharsets.UTF_8)}"
     }
 
     // Play Store가 설치 후 첫 실행 시 Install Referrer API로 그대로 넘겨주는 값이다.
