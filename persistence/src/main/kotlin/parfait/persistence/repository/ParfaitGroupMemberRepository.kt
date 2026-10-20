@@ -4,27 +4,32 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import parfait.persistence.entity.ParfaitGroupMember
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 interface ParfaitGroupMemberRepository : JpaRepository<ParfaitGroupMember, Long> {
+    fun findByParfaitGroupIdAndMemberIdAndLeftAtIsNull(
+        parfaitGroupId: Long,
+        memberId: Long,
+    ): ParfaitGroupMember?
+
     fun findByParfaitGroupIdAndMemberId(
         parfaitGroupId: Long,
         memberId: Long,
     ): ParfaitGroupMember?
 
-    fun findAllByParfaitGroupIdOrderByJoinedAtAscIdAsc(parfaitGroupId: Long): List<ParfaitGroupMember>
+    fun findAllByParfaitGroupIdAndLeftAtIsNullOrderByJoinedAtAscIdAsc(parfaitGroupId: Long): List<ParfaitGroupMember>
 
-    fun existsByParfaitGroupIdAndMemberId(
+    fun findAllByMemberIdAndLeftAtIsNullOrderByJoinedAtAscIdAsc(memberId: Long): List<ParfaitGroupMember>
+
+    fun existsByParfaitGroupIdAndMemberIdAndLeftAtIsNull(
         parfaitGroupId: Long,
         memberId: Long,
     ): Boolean
 
-    fun existsByParfaitGroupIdAndGroupNickname(
-        parfaitGroupId: Long,
-        groupNickname: String,
-    ): Boolean
+    fun countByParfaitGroupIdAndLeftAtIsNull(parfaitGroupId: Long): Long
 
-    fun countByParfaitGroupId(parfaitGroupId: Long): Long
+    fun findAllByIdIn(ids: Collection<Long>): List<ParfaitGroupMember>
 
     @Query(
         value =
@@ -35,29 +40,79 @@ interface ParfaitGroupMemberRepository : JpaRepository<ParfaitGroupMember, Long>
                 (
                     SELECT pi.image_url
                     FROM parfait p
-                    LEFT JOIN parfait_image pi ON pi.parfait_id = p.id
+                    JOIN parfait_image pi ON pi.parfait_id = p.id
                     WHERE p.parfait_group_id = g.id
-                    ORDER BY p.parfait_date DESC, pi.created_at DESC, pi.id DESC
+                      AND p.parfait_date = :today
+                    ORDER BY pi.created_at DESC, pi.id DESC
                     LIMIT 1
                 ) AS recentImageUrl,
                 (
-                    SELECT pi.created_at
+                    SELECT pi.border_type
                     FROM parfait p
-                    LEFT JOIN parfait_image pi ON pi.parfait_id = p.id
+                    JOIN parfait_image pi ON pi.parfait_id = p.id
                     WHERE p.parfait_group_id = g.id
-                    ORDER BY p.parfait_date DESC, pi.created_at DESC, pi.id DESC
+                      AND p.parfait_date = :today
+                    ORDER BY pi.created_at DESC, pi.id DESC
                     LIMIT 1
-                ) AS recentImageUploadedAt
+                ) AS recentImageBorderType,
+                (
+                    SELECT pi.border_color
+                    FROM parfait p
+                    JOIN parfait_image pi ON pi.parfait_id = p.id
+                    WHERE p.parfait_group_id = g.id
+                      AND p.parfait_date = :today
+                    ORDER BY pi.created_at DESC, pi.id DESC
+                    LIMIT 1
+                ) AS recentImageBorderColor,
+                (
+                    SELECT pi.border_width
+                    FROM parfait p
+                    JOIN parfait_image pi ON pi.parfait_id = p.id
+                    WHERE p.parfait_group_id = g.id
+                      AND p.parfait_date = :today
+                    ORDER BY pi.created_at DESC, pi.id DESC
+                    LIMIT 1
+                ) AS recentImageBorderWidth,
+                COALESCE(
+                    (
+                        SELECT pi.created_at
+                        FROM parfait p
+                        JOIN parfait_image pi ON pi.parfait_id = p.id
+                        WHERE p.parfait_group_id = g.id
+                        ORDER BY pi.created_at DESC, pi.id DESC
+                        LIMIT 1
+                    ),
+                    g.created_at
+                ) AS recentImageUploadedAt,
+                COALESCE(
+                    (
+                        SELECT placer.nametag_chip
+                        FROM parfait p
+                        JOIN parfait_image pi ON pi.parfait_id = p.id
+                        LEFT JOIN parfait_group_member placer ON placer.id = pi.placed_by_group_member_id
+                        WHERE p.parfait_group_id = g.id
+                        ORDER BY pi.created_at DESC, pi.id DESC
+                        LIMIT 1
+                    ),
+                    (
+                        SELECT creator.nametag_chip
+                        FROM parfait_group_member creator
+                        WHERE creator.parfait_group_id = g.id
+                        ORDER BY creator.joined_at ASC, creator.id ASC
+                        LIMIT 1
+                    )
+                ) AS lastPlacedByNametagChip
             FROM parfait_group_member gm
             INNER JOIN parfait_group g ON g.id = gm.parfait_group_id
             WHERE gm.member_id = :memberId
+              AND gm.left_at IS NULL
             ORDER BY COALESCE(
                 (
                     SELECT pi.created_at
                     FROM parfait p
-                    LEFT JOIN parfait_image pi ON pi.parfait_id = p.id
+                    JOIN parfait_image pi ON pi.parfait_id = p.id
                     WHERE p.parfait_group_id = g.id
-                    ORDER BY p.parfait_date DESC, pi.created_at DESC, pi.id DESC
+                    ORDER BY pi.created_at DESC, pi.id DESC
                     LIMIT 1
                 ),
                 g.created_at
@@ -67,6 +122,7 @@ interface ParfaitGroupMemberRepository : JpaRepository<ParfaitGroupMember, Long>
     )
     fun findMyGroupSummaries(
         @Param("memberId") memberId: Long,
+        @Param("today") today: LocalDate,
     ): List<MyParfaitGroupSummaryProjection>
 }
 
@@ -74,5 +130,9 @@ interface MyParfaitGroupSummaryProjection {
     val groupId: Long
     val groupName: String
     val recentImageUrl: String?
-    val recentImageUploadedAt: LocalDateTime?
+    val recentImageBorderType: String?
+    val recentImageBorderColor: String?
+    val recentImageBorderWidth: Double?
+    val recentImageUploadedAt: LocalDateTime
+    val lastPlacedByNametagChip: String
 }

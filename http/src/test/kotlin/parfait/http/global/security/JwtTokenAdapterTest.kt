@@ -1,3 +1,4 @@
+// http/src/test/kotlin/parfait/http/global/security/JwtTokenAdapterTest.kt
 package parfait.http.global.security
 
 import io.jsonwebtoken.Jwts
@@ -22,12 +23,29 @@ class JwtTokenAdapterTest {
         )
 
     @Test
-    fun `액세스 토큰을 발급하고 검증하면 같은 memberId를 반환한다`() {
-        val accessToken = adapter.createAccessToken(memberId = 42L)
+    fun `액세스 토큰을 발급하고 검증하면 memberId와 sessionId를 반환한다`() {
+        val accessToken = adapter.createAccessToken(memberId = 42L, sessionId = "session-1")
 
-        val memberId = adapter.validateAccessToken(accessToken)
+        val claims = adapter.validateAccessToken(accessToken)
 
-        assertEquals(42L, memberId)
+        assertEquals(42L, claims.memberId)
+        assertEquals("session-1", claims.sessionId)
+    }
+
+    @Test
+    fun `sessionId 클레임이 없는 액세스 토큰을 검증하면 sessionId는 null이다`() {
+        val legacyToken =
+            Jwts
+                .builder()
+                .subject("42")
+                .claim("type", "ACCESS")
+                .signWith(Keys.hmacShaKeyFor(TEST_SECRET_KEY.toByteArray()), Jwts.SIG.HS256)
+                .compact()
+
+        val claims = adapter.validateAccessToken(legacyToken)
+
+        assertEquals(42L, claims.memberId)
+        assertEquals(null, claims.sessionId)
     }
 
     @Test
@@ -65,7 +83,7 @@ class JwtTokenAdapterTest {
                 refreshTokenExpirationSeconds = -5,
                 registrationTokenExpirationSeconds = -5,
             )
-        val expiredToken = expiredAdapter.createAccessToken(memberId = 42L)
+        val expiredToken = expiredAdapter.createAccessToken(memberId = 42L, sessionId = "session-1")
 
         val exception =
             assertFailsWith<BusinessException> {
@@ -76,7 +94,7 @@ class JwtTokenAdapterTest {
 
     @Test
     fun `액세스 토큰을 validateRefreshToken에 넣으면 INVALID_TOKEN 예외를 던진다`() {
-        val accessToken = adapter.createAccessToken(memberId = 42L)
+        val accessToken = adapter.createAccessToken(memberId = 42L, sessionId = "session-1")
 
         val exception =
             assertFailsWith<BusinessException> {
@@ -151,5 +169,44 @@ class JwtTokenAdapterTest {
                     .parseSignedClaims(expiredToken)
             }
         assertEquals(true, exception.message!!.contains("expired"))
+    }
+
+    @Test
+    fun `registrationToken을 검증하면 provider와 providerUserId를 반환한다`() {
+        val token = adapter.createRegistrationToken(LoginProvider.KAKAO, "kakao-sub-1")
+
+        val claims = adapter.validateRegistrationToken(token)
+
+        assertEquals(LoginProvider.KAKAO, claims.provider)
+        assertEquals("kakao-sub-1", claims.providerUserId)
+    }
+
+    @Test
+    fun `액세스 토큰을 validateRegistrationToken에 넣으면 INVALID_TOKEN 예외를 던진다`() {
+        val accessToken = adapter.createAccessToken(memberId = 42L, sessionId = "session-1")
+
+        val exception =
+            assertFailsWith<BusinessException> {
+                adapter.validateRegistrationToken(accessToken)
+            }
+        assertEquals(AuthErrorCode.INVALID_TOKEN, exception.errorCode)
+    }
+
+    @Test
+    fun `만료된 registrationToken을 validateRegistrationToken에 넣으면 EXPIRED_TOKEN 예외를 던진다`() {
+        val expiredAdapter =
+            JwtTokenAdapter(
+                secretKey = TEST_SECRET_KEY,
+                accessTokenExpirationSeconds = 3600,
+                refreshTokenExpirationSeconds = 1_209_600,
+                registrationTokenExpirationSeconds = -5,
+            )
+        val expiredToken = expiredAdapter.createRegistrationToken(LoginProvider.KAKAO, "kakao-sub-1")
+
+        val exception =
+            assertFailsWith<BusinessException> {
+                adapter.validateRegistrationToken(expiredToken)
+            }
+        assertEquals(AuthErrorCode.EXPIRED_TOKEN, exception.errorCode)
     }
 }

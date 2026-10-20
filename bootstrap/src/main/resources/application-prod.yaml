@@ -19,3 +19,13 @@ jwt:
 
 kakao:
   app-key: ${KAKAO_APP_KEY}
+
+apple:
+  client-id: ${APPLE_CLIENT_ID}
+
+aws:
+  s3:
+    bucket: ${AWS_S3_BUCKET}
+
+fcm:
+  credentials-path: file:/app/parfait-firebase-key.json

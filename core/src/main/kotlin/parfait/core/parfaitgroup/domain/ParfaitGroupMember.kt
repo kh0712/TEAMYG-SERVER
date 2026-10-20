@@ -7,7 +7,9 @@ class ParfaitGroupMember private constructor(
     val parfaitGroupId: Long,
     val memberId: Long,
     val groupNickname: GroupNickname,
+    val nametagChip: NameTagChipType,
     val joinedAt: LocalDateTime,
+    val leftAt: LocalDateTime?,
 ) {
     fun changeNickname(groupNickname: String): ParfaitGroupMember =
         ParfaitGroupMember(
@@ -15,7 +17,35 @@ class ParfaitGroupMember private constructor(
             parfaitGroupId = parfaitGroupId,
             memberId = memberId,
             groupNickname = GroupNickname.of(groupNickname),
+            nametagChip = nametagChip,
             joinedAt = joinedAt,
+            leftAt = leftAt,
+        )
+
+    fun rejoin(
+        groupNickname: String,
+        nametagChip: NameTagChipType,
+        joinedAt: LocalDateTime = LocalDateTime.now(),
+    ): ParfaitGroupMember =
+        ParfaitGroupMember(
+            id = id,
+            parfaitGroupId = parfaitGroupId,
+            memberId = memberId,
+            groupNickname = GroupNickname.of(groupNickname),
+            nametagChip = nametagChip,
+            joinedAt = joinedAt,
+            leftAt = null,
+        )
+
+    fun leave(leftAt: LocalDateTime = LocalDateTime.now()): ParfaitGroupMember =
+        ParfaitGroupMember(
+            id = id,
+            parfaitGroupId = parfaitGroupId,
+            memberId = memberId,
+            groupNickname = GroupNickname.unknown(),
+            nametagChip = NameTagChipType.DEFAULT,
+            joinedAt = joinedAt,
+            leftAt = leftAt,
         )
 
     companion object {
@@ -23,6 +53,7 @@ class ParfaitGroupMember private constructor(
             parfaitGroupId: Long,
             memberId: Long,
             groupNickname: String,
+            nametagChip: NameTagChipType,
             joinedAt: LocalDateTime = LocalDateTime.now(),
         ): ParfaitGroupMember =
             ParfaitGroupMember(
@@ -30,7 +61,9 @@ class ParfaitGroupMember private constructor(
                 parfaitGroupId = parfaitGroupId,
                 memberId = memberId,
                 groupNickname = GroupNickname.of(groupNickname),
+                nametagChip = nametagChip,
                 joinedAt = joinedAt,
+                leftAt = null,
             )
 
         fun reconstitute(
@@ -39,13 +72,21 @@ class ParfaitGroupMember private constructor(
             memberId: Long,
             groupNickname: String,
             joinedAt: LocalDateTime,
+            leftAt: LocalDateTime? = null,
+            // 마지막 파라미터 + 기본값을 둔다: parfaitimage/member 테스트의 기존 호출부들이
+            // (id, parfaitGroupId, memberId, groupNickname, joinedAt) 5개만 위치 인자로 넘기므로,
+            // 순서를 바꾸거나 앞으로 옮기면 그 호출부들이 전부 깨진다. nametagChip은 always-non-null
+            // 불변식이라 기본값은 null이 아니라 DEFAULT를 쓴다.
+            nametagChip: NameTagChipType = NameTagChipType.DEFAULT,
         ): ParfaitGroupMember =
             ParfaitGroupMember(
                 id = id,
                 parfaitGroupId = parfaitGroupId,
                 memberId = memberId,
                 groupNickname = GroupNickname.of(groupNickname),
+                nametagChip = nametagChip,
                 joinedAt = joinedAt,
+                leftAt = leftAt,
             )
     }
 }

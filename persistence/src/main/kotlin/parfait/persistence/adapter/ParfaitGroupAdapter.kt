@@ -1,17 +1,19 @@
 package parfait.persistence.adapter
 
 import org.springframework.stereotype.Component
+import parfait.core.parfait.domain.ParfaitDay
 import parfait.core.parfaitgroup.application.port.out.MyParfaitGroupQueryPort
 import parfait.core.parfaitgroup.application.port.out.MyParfaitGroupSummary
-import parfait.core.parfaitgroup.application.port.out.ParfaitGroupMemberDeletePort
+import parfait.core.parfaitgroup.application.port.out.ParfaitGroupMemberLeavePort
 import parfait.core.parfaitgroup.application.port.out.ParfaitGroupMemberQueryPort
 import parfait.core.parfaitgroup.application.port.out.ParfaitGroupMemberSavePort
 import parfait.core.parfaitgroup.application.port.out.ParfaitGroupQueryPort
 import parfait.core.parfaitgroup.application.port.out.ParfaitGroupSavePort
-import parfait.core.parfaitgroup.domain.GroupNickname
 import parfait.core.parfaitgroup.domain.InviteCode
+import parfait.core.parfaitgroup.domain.NameTagChipType
 import parfait.core.parfaitgroup.domain.ParfaitGroup
 import parfait.core.parfaitgroup.domain.ParfaitGroupMember
+import parfait.core.parfaitimage.domain.BorderType
 import parfait.persistence.repository.ParfaitGroupMemberRepository
 import parfait.persistence.repository.ParfaitGroupRepository
 import parfait.persistence.entity.ParfaitGroup as ParfaitGroupEntity
@@ -25,7 +27,7 @@ class ParfaitGroupAdapter(
     ParfaitGroupSavePort,
     ParfaitGroupMemberQueryPort,
     ParfaitGroupMemberSavePort,
-    ParfaitGroupMemberDeletePort,
+    ParfaitGroupMemberLeavePort,
     MyParfaitGroupQueryPort {
     override fun findById(groupId: Long): ParfaitGroup? =
         parfaitGroupRepository.findById(groupId).orElse(null)?.toDomain()
@@ -42,43 +44,60 @@ class ParfaitGroupAdapter(
     override fun existsByInviteCode(inviteCode: InviteCode): Boolean =
         parfaitGroupRepository.existsByInviteCode(inviteCode.value)
 
+    override fun findAllIds(): List<Long> = parfaitGroupRepository.findAllIds()
+
     override fun save(group: ParfaitGroup): ParfaitGroup = parfaitGroupRepository.save(group.toEntity()).toDomain()
 
     override fun existsByGroupIdAndMemberId(
         groupId: Long,
         memberId: Long,
-    ): Boolean = parfaitGroupMemberRepository.existsByParfaitGroupIdAndMemberId(groupId, memberId)
+    ): Boolean = parfaitGroupMemberRepository.existsByParfaitGroupIdAndMemberIdAndLeftAtIsNull(groupId, memberId)
 
     override fun findByGroupIdAndMemberId(
+        groupId: Long,
+        memberId: Long,
+    ): ParfaitGroupMember? =
+        parfaitGroupMemberRepository.findByParfaitGroupIdAndMemberIdAndLeftAtIsNull(groupId, memberId)?.toDomain()
+
+    override fun findAnyByGroupIdAndMemberId(
         groupId: Long,
         memberId: Long,
     ): ParfaitGroupMember? = parfaitGroupMemberRepository.findByParfaitGroupIdAndMemberId(groupId, memberId)?.toDomain()
 
     override fun findAllByGroupId(groupId: Long): List<ParfaitGroupMember> =
-        parfaitGroupMemberRepository.findAllByParfaitGroupIdOrderByJoinedAtAscIdAsc(groupId).map { it.toDomain() }
-
-    override fun existsByGroupIdAndNickname(
-        groupId: Long,
-        nickname: GroupNickname,
-    ): Boolean = parfaitGroupMemberRepository.existsByParfaitGroupIdAndGroupNickname(groupId, nickname.value)
+        parfaitGroupMemberRepository.findAllByParfaitGroupIdAndLeftAtIsNullOrderByJoinedAtAscIdAsc(groupId).map {
+            it.toDomain()
+        }
 
     override fun countByGroupId(groupId: Long): Int =
-        Math.toIntExact(parfaitGroupMemberRepository.countByParfaitGroupId(groupId))
+        Math.toIntExact(parfaitGroupMemberRepository.countByParfaitGroupIdAndLeftAtIsNull(groupId))
+
+    override fun findAllByIds(groupMemberIds: Collection<Long>): List<ParfaitGroupMember> =
+        parfaitGroupMemberRepository.findAllByIdIn(groupMemberIds).map { it.toDomain() }
 
     override fun save(groupMember: ParfaitGroupMember): ParfaitGroupMember =
         parfaitGroupMemberRepository.save(groupMember.toEntity()).toDomain()
 
-    override fun delete(groupMember: ParfaitGroupMember) {
-        parfaitGroupMemberRepository.deleteById(requireNotNull(groupMember.id))
+    override fun leave(groupMember: ParfaitGroupMember) {
+        parfaitGroupMemberRepository.save(groupMember.toEntity())
     }
 
+    override fun findAllMembershipsByMemberId(memberId: Long): List<ParfaitGroupMember> =
+        parfaitGroupMemberRepository.findAllByMemberIdAndLeftAtIsNullOrderByJoinedAtAscIdAsc(memberId).map {
+            it.toDomain()
+        }
+
     override fun findAllByMemberId(memberId: Long): List<MyParfaitGroupSummary> =
-        parfaitGroupMemberRepository.findMyGroupSummaries(memberId).map {
+        parfaitGroupMemberRepository.findMyGroupSummaries(memberId, ParfaitDay.current()).map {
             MyParfaitGroupSummary(
                 groupId = it.groupId,
                 groupName = it.groupName,
                 recentImageUrl = it.recentImageUrl,
+                recentImageBorderType = it.recentImageBorderType?.let(BorderType::valueOf),
+                recentImageBorderColor = it.recentImageBorderColor,
+                recentImageBorderWidth = it.recentImageBorderWidth,
                 recentImageUploadedAt = it.recentImageUploadedAt,
+                lastPlacedByNametagChip = NameTagChipType.valueOf(it.lastPlacedByNametagChip),
             )
         }
 
@@ -108,6 +127,8 @@ class ParfaitGroupAdapter(
             memberId = memberId,
             groupNickname = groupNickname.value,
             joinedAt = joinedAt,
+            leftAt = leftAt,
+            nametagChip = nametagChip.name,
             id = id,
         )
 
@@ -118,5 +139,7 @@ class ParfaitGroupAdapter(
             memberId = memberId,
             groupNickname = groupNickname,
             joinedAt = joinedAt,
+            leftAt = leftAt,
+            nametagChip = NameTagChipType.valueOf(nametagChip),
         )
 }

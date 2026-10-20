@@ -23,3 +23,10 @@ jwt:
 
 kakao:
   app-key: local-only-dummy-kakao-app-key
+
+apple:
+  client-id: local-only-dummy-apple-client-id
+
+aws:
+  s3:
+    bucket: local-only-dummy-bucket

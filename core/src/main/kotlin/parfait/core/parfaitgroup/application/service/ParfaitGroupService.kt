@@ -3,6 +3,8 @@ package parfait.core.parfaitgroup.application.service
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import parfait.core.member.port.out.MemberQueryPort
+import parfait.core.parfait.domain.ParfaitDay
+import parfait.core.parfait.port.`in`.EnsureActiveCanvasUseCase
 import parfait.core.parfaitgroup.application.port.`in`.ChangeMyParfaitGroupNicknameCommand
 import parfait.core.parfaitgroup.application.port.`in`.ChangeMyParfaitGroupNicknameResult
 import parfait.core.parfaitgroup.application.port.`in`.ChangeMyParfaitGroupNicknameUseCase
@@ -26,7 +28,7 @@ import parfait.core.parfaitgroup.application.port.`in`.ReportParfaitGroupCommand
 import parfait.core.parfaitgroup.application.port.`in`.ReportParfaitGroupResult
 import parfait.core.parfaitgroup.application.port.`in`.ReportParfaitGroupUseCase
 import parfait.core.parfaitgroup.application.port.out.MyParfaitGroupQueryPort
-import parfait.core.parfaitgroup.application.port.out.ParfaitGroupMemberDeletePort
+import parfait.core.parfaitgroup.application.port.out.ParfaitGroupMemberLeavePort
 import parfait.core.parfaitgroup.application.port.out.ParfaitGroupMemberQueryPort
 import parfait.core.parfaitgroup.application.port.out.ParfaitGroupMemberSavePort
 import parfait.core.parfaitgroup.application.port.out.ParfaitGroupQueryPort
@@ -35,6 +37,7 @@ import parfait.core.parfaitgroup.application.port.out.ParfaitGroupSavePort
 import parfait.core.parfaitgroup.domain.GroupNickname
 import parfait.core.parfaitgroup.domain.InviteCode
 import parfait.core.parfaitgroup.domain.InviteCodeGenerator
+import parfait.core.parfaitgroup.domain.NameTagChipType
 import parfait.core.parfaitgroup.domain.ParfaitGroup
 import parfait.core.parfaitgroup.domain.ParfaitGroupError
 import parfait.core.parfaitgroup.domain.ParfaitGroupException
@@ -47,11 +50,13 @@ class ParfaitGroupService(
     private val parfaitGroupSavePort: ParfaitGroupSavePort,
     private val parfaitGroupMemberQueryPort: ParfaitGroupMemberQueryPort,
     private val parfaitGroupMemberSavePort: ParfaitGroupMemberSavePort,
-    private val parfaitGroupMemberDeletePort: ParfaitGroupMemberDeletePort,
+    private val parfaitGroupMemberLeavePort: ParfaitGroupMemberLeavePort,
     private val parfaitGroupReportSavePort: ParfaitGroupReportSavePort,
     private val myParfaitGroupQueryPort: MyParfaitGroupQueryPort,
     private val memberQueryPort: MemberQueryPort,
     private val inviteCodeGenerator: InviteCodeGenerator,
+    private val ensureActiveCanvasUseCase: EnsureActiveCanvasUseCase,
+    private val parfaitGroupVersionService: ParfaitGroupVersionService,
 ) : PreviewParfaitGroupJoinUseCase,
     JoinParfaitGroupUseCase,
     CreateParfaitGroupUseCase,
@@ -74,13 +79,24 @@ class ParfaitGroupService(
     override fun join(command: JoinParfaitGroupCommand): JoinParfaitGroupResult {
         val group = findGroup(InviteCode.of(command.inviteCode), forUpdate = true)
         val nickname = validateJoin(group, command.memberId)
-        parfaitGroupMemberSavePort.save(
-            ParfaitGroupMember.join(
+        val nametagChip = assignNametagChip(group.requireId())
+        val previousMembership =
+            parfaitGroupMemberQueryPort.findAnyByGroupIdAndMemberId(
+                group.requireId(),
+                command.memberId,
+            )
+        val membership =
+            previousMembership?.rejoin(
+                groupNickname = nickname.value,
+                nametagChip = nametagChip,
+            ) ?: ParfaitGroupMember.join(
                 parfaitGroupId = group.requireId(),
                 memberId = command.memberId,
                 groupNickname = nickname.value,
-            ),
-        )
+                nametagChip = nametagChip,
+            )
+        parfaitGroupMemberSavePort.save(membership)
+        parfaitGroupVersionService.bump(group.requireId())
         return JoinParfaitGroupResult(
             groupId = group.requireId(),
             groupName = group.name.value,
@@ -100,11 +116,14 @@ class ParfaitGroupService(
                     memberLimit = command.memberLimit,
                 ),
             )
+        ensureActiveCanvasUseCase.ensure(savedGroup.requireId(), ParfaitDay.current())
+        val creatorNametagChip = assignNametagChip(savedGroup.requireId())
         parfaitGroupMemberSavePort.save(
             ParfaitGroupMember.join(
                 parfaitGroupId = savedGroup.requireId(),
                 memberId = command.memberId,
                 groupNickname = nickname.value,
+                nametagChip = creatorNametagChip,
             ),
         )
         return CreateParfaitGroupResult(
@@ -112,6 +131,9 @@ class ParfaitGroupService(
             groupName = savedGroup.name.value,
             inviteCode = savedGroup.inviteCode.value,
             memberLimit = savedGroup.memberLimit.value,
+            recentImageUrl = null,
+            recentImageUploadedAt = savedGroup.updatedAt,
+            lastPlacedByNametagChip = creatorNametagChip,
         )
     }
 
@@ -122,7 +144,11 @@ class ParfaitGroupService(
                 groupId = it.groupId,
                 groupName = it.groupName,
                 recentImageUrl = it.recentImageUrl,
+                recentImageBorderType = it.recentImageBorderType,
+                recentImageBorderColor = it.recentImageBorderColor,
+                recentImageBorderWidth = it.recentImageBorderWidth?.let { 2.0 },
                 recentImageUploadedAt = it.recentImageUploadedAt,
+                lastPlacedByNametagChip = it.lastPlacedByNametagChip,
             )
         }
 
@@ -135,13 +161,16 @@ class ParfaitGroupService(
         val myMembership = findMembership(groupId, memberId)
         return MyParfaitGroupDetailResult(
             groupId = group.requireId(),
+            groupName = group.name.value,
             groupNickname = myMembership.groupNickname.value,
             inviteCode = group.inviteCode.value,
+            memberLimit = group.memberLimit.value,
             members =
                 parfaitGroupMemberQueryPort.findAllByGroupId(groupId).map {
                     ParfaitGroupMemberResult(
                         memberId = it.memberId,
                         groupNickname = it.groupNickname.value,
+                        nametagChip = it.nametagChip,
                     )
                 },
         )
@@ -152,13 +181,9 @@ class ParfaitGroupService(
         findGroupByIdForUpdate(command.groupId)
         val membership = findMembership(command.groupId, command.memberId)
         val changedMembership = membership.changeNickname(command.groupNickname)
-        if (changedMembership.groupNickname != membership.groupNickname &&
-            parfaitGroupMemberQueryPort.existsByGroupIdAndNickname(command.groupId, changedMembership.groupNickname)
-        ) {
-            throw ParfaitGroupException(ParfaitGroupError.GROUP_NICKNAME_ALREADY_USED)
-        }
         if (changedMembership.groupNickname != membership.groupNickname) {
             parfaitGroupMemberSavePort.save(changedMembership)
+            parfaitGroupVersionService.bump(command.groupId)
         }
         return ChangeMyParfaitGroupNicknameResult(
             groupId = command.groupId,
@@ -169,7 +194,8 @@ class ParfaitGroupService(
     @Transactional
     override fun leave(command: LeaveParfaitGroupCommand): LeaveParfaitGroupResult {
         findGroupByIdForUpdate(command.groupId)
-        parfaitGroupMemberDeletePort.delete(findMembership(command.groupId, command.memberId))
+        parfaitGroupMemberLeavePort.leave(findMembership(command.groupId, command.memberId).leave())
+        parfaitGroupVersionService.bumpOnMemberLeft(command.groupId, command.memberId)
         return LeaveParfaitGroupResult(groupId = command.groupId)
     }
 
@@ -184,7 +210,8 @@ class ParfaitGroupService(
         findGroupByIdForUpdate(command.groupId)
         val membership = findMembership(command.groupId, command.memberId)
         val savedReport = parfaitGroupReportSavePort.save(report)
-        parfaitGroupMemberDeletePort.delete(membership)
+        parfaitGroupMemberLeavePort.leave(membership.leave())
+        parfaitGroupVersionService.bumpOnMemberLeft(command.groupId, command.memberId)
         return ReportParfaitGroupResult(
             groupId = command.groupId,
             reportId = requireNotNull(savedReport.id),
@@ -221,11 +248,7 @@ class ParfaitGroupService(
             alreadyJoined = parfaitGroupMemberQueryPort.existsByGroupIdAndMemberId(groupId, memberId),
             currentMemberCount = parfaitGroupMemberQueryPort.countByGroupId(groupId),
         )
-        val nickname = GroupNickname.of(requireMemberNickname(memberId))
-        if (parfaitGroupMemberQueryPort.existsByGroupIdAndNickname(groupId, nickname)) {
-            throw ParfaitGroupException(ParfaitGroupError.GROUP_NICKNAME_ALREADY_USED)
-        }
-        return nickname
+        return GroupNickname.of(requireMemberNickname(memberId))
     }
 
     private fun requireMemberNickname(memberId: Long): String =
@@ -252,5 +275,14 @@ class ParfaitGroupService(
                 return inviteCode
             }
         }
+    }
+
+    private fun assignNametagChip(groupId: Long): NameTagChipType {
+        val occupied =
+            parfaitGroupMemberQueryPort
+                .findAllByGroupId(groupId)
+                .mapNotNull { it.nametagChip }
+                .toSet()
+        return NameTagChipType.assignRandom(occupied)
     }
 }

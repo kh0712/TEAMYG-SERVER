@@ -7,14 +7,58 @@ import org.springframework.context.annotation.Import
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
 import parfait.http.TestApplication
-import parfait.http.api.auth.controller.TestKakaoLoginUseCaseConfig
+import parfait.http.api.deeplink.controller.TestGetDownloadStoreLinkUseCaseConfig
+import parfait.http.api.notification.controller.TestDeviceTokenUseCaseConfig
+import parfait.http.auth.controller.TestAppleLoginUseCaseConfig
+import parfait.http.auth.controller.TestKakaoLoginUseCaseConfig
+import parfait.http.auth.controller.TestLogoutUseCaseConfig
+import parfait.http.auth.controller.TestPolicyQueryUseCaseConfig
+import parfait.http.auth.controller.TestReissueUseCaseConfig
+import parfait.http.auth.controller.TestSignupUseCaseConfig
 import parfait.http.global.security.TestMemberQueryPortConfig
-import parfait.http.parfaitgroup.TestParfaitGroupUseCaseConfig
+import parfait.http.image.controller.TestConfirmImageUploadUseCaseConfig
+import parfait.http.image.controller.TestIssueImageUploadUrlUseCaseConfig
+import parfait.http.member.controller.TestChangeGlobalNicknameUseCaseConfig
+import parfait.http.member.controller.TestGetMyAccountUseCaseConfig
+import parfait.http.member.controller.TestWithdrawUseCaseConfig
+import parfait.http.parfait.controller.TestChangeParfaitBackgroundUseCaseConfig
+import parfait.http.parfait.controller.TestParfaitUseCaseConfig
+import parfait.http.parfait.controller.TestRotateParfaitCanvasesUseCaseConfig
+import parfait.http.parfaitgroup.controller.TestParfaitGroupUseCaseConfig
+import parfait.http.parfaitimage.controller.TestDeleteParfaitImageUseCaseConfig
+import parfait.http.parfaitimage.controller.TestPlaceParfaitImageUseCaseConfig
+import parfait.http.parfaitimage.controller.TestUpdateParfaitImageBorderUseCaseConfig
+import parfait.http.parfaitimage.controller.TestUpdateParfaitImageUseCaseConfig
+import parfait.http.parfaitimage.controller.TestUpdateParfaitImagesUseCaseConfig
 import kotlin.test.Test
 
 @SpringBootTest(classes = [TestApplication::class])
 @AutoConfigureMockMvc
-@Import(TestMemberQueryPortConfig::class, TestKakaoLoginUseCaseConfig::class, TestParfaitGroupUseCaseConfig::class)
+@Import(
+    TestMemberQueryPortConfig::class,
+    TestGetDownloadStoreLinkUseCaseConfig::class,
+    TestKakaoLoginUseCaseConfig::class,
+    TestAppleLoginUseCaseConfig::class,
+    TestSignupUseCaseConfig::class,
+    TestParfaitGroupUseCaseConfig::class,
+    TestReissueUseCaseConfig::class,
+    TestLogoutUseCaseConfig::class,
+    TestParfaitUseCaseConfig::class,
+    TestPolicyQueryUseCaseConfig::class,
+    TestChangeGlobalNicknameUseCaseConfig::class,
+    TestWithdrawUseCaseConfig::class,
+    TestGetMyAccountUseCaseConfig::class,
+    TestIssueImageUploadUrlUseCaseConfig::class,
+    TestConfirmImageUploadUseCaseConfig::class,
+    TestPlaceParfaitImageUseCaseConfig::class,
+    TestUpdateParfaitImageUseCaseConfig::class,
+    TestUpdateParfaitImagesUseCaseConfig::class,
+    TestUpdateParfaitImageBorderUseCaseConfig::class,
+    TestDeleteParfaitImageUseCaseConfig::class,
+    TestDeviceTokenUseCaseConfig::class,
+    TestRotateParfaitCanvasesUseCaseConfig::class,
+    TestChangeParfaitBackgroundUseCaseConfig::class,
+)
 class OpenApiEndpointTest {
     @Autowired
     lateinit var mockMvc: MockMvc

@@ -1,0 +1,15 @@
+package parfait.core.parfait.exception
+
+import parfait.common.error.BaseErrorCode
+
+enum class ParfaitErrorCode(
+    override val status: Int,
+    override val code: String,
+    override val message: String,
+) : BaseErrorCode {
+    INVALID_DATE_RANGE(400, "INVALID_DATE_RANGE", "조회 시작일이 종료일보다 늦을 수 없습니다"),
+    PARFAIT_NOT_FOUND(404, "PARFAIT_NOT_FOUND", "존재하지 않는 파르페입니다"),
+    PARFAIT_ALREADY_CLOSED(409, "PARFAIT_ALREADY_CLOSED", "이미 마감된 파르페입니다"),
+    INVALID_BACKGROUND(400, "INVALID_BACKGROUND", "배경 정보가 올바르지 않습니다"),
+    BACKGROUND_IMAGE_NOT_CONFIRMED(409, "BACKGROUND_IMAGE_NOT_CONFIRMED", "업로드가 확인되지 않은 이미지입니다"),
+}

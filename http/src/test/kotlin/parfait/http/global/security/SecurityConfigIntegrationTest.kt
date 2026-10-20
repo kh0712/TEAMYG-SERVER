@@ -15,10 +15,31 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import parfait.core.auth.domain.LoginProvider
 import parfait.core.auth.port.out.TokenIssuePort
+import parfait.core.member.port.out.MemberAccount
 import parfait.core.member.port.out.MemberQueryPort
 import parfait.http.TestApplication
-import parfait.http.api.auth.controller.TestKakaoLoginUseCaseConfig
-import parfait.http.parfaitgroup.TestParfaitGroupUseCaseConfig
+import parfait.http.api.deeplink.controller.TestGetDownloadStoreLinkUseCaseConfig
+import parfait.http.api.notification.controller.TestDeviceTokenUseCaseConfig
+import parfait.http.auth.controller.TestAppleLoginUseCaseConfig
+import parfait.http.auth.controller.TestKakaoLoginUseCaseConfig
+import parfait.http.auth.controller.TestLogoutUseCaseConfig
+import parfait.http.auth.controller.TestPolicyQueryUseCaseConfig
+import parfait.http.auth.controller.TestReissueUseCaseConfig
+import parfait.http.auth.controller.TestSignupUseCaseConfig
+import parfait.http.image.controller.TestConfirmImageUploadUseCaseConfig
+import parfait.http.image.controller.TestIssueImageUploadUrlUseCaseConfig
+import parfait.http.member.controller.TestChangeGlobalNicknameUseCaseConfig
+import parfait.http.member.controller.TestGetMyAccountUseCaseConfig
+import parfait.http.member.controller.TestWithdrawUseCaseConfig
+import parfait.http.parfait.controller.TestChangeParfaitBackgroundUseCaseConfig
+import parfait.http.parfait.controller.TestParfaitUseCaseConfig
+import parfait.http.parfait.controller.TestRotateParfaitCanvasesUseCaseConfig
+import parfait.http.parfaitgroup.controller.TestParfaitGroupUseCaseConfig
+import parfait.http.parfaitimage.controller.TestDeleteParfaitImageUseCaseConfig
+import parfait.http.parfaitimage.controller.TestPlaceParfaitImageUseCaseConfig
+import parfait.http.parfaitimage.controller.TestUpdateParfaitImageBorderUseCaseConfig
+import parfait.http.parfaitimage.controller.TestUpdateParfaitImageUseCaseConfig
+import parfait.http.parfaitimage.controller.TestUpdateParfaitImagesUseCaseConfig
 import kotlin.test.Test
 
 @SpringBootTest(
@@ -34,8 +55,28 @@ import kotlin.test.Test
 @Import(
     SecurityConfigIntegrationTest.MemberOneOnlyExistsConfig::class,
     SecurityConfigIntegrationTest.DummyProtectedController::class,
+    TestGetDownloadStoreLinkUseCaseConfig::class,
     TestParfaitGroupUseCaseConfig::class,
     TestKakaoLoginUseCaseConfig::class,
+    TestAppleLoginUseCaseConfig::class,
+    TestSignupUseCaseConfig::class,
+    TestReissueUseCaseConfig::class,
+    TestLogoutUseCaseConfig::class,
+    TestParfaitUseCaseConfig::class,
+    TestPolicyQueryUseCaseConfig::class,
+    TestChangeGlobalNicknameUseCaseConfig::class,
+    TestWithdrawUseCaseConfig::class,
+    TestGetMyAccountUseCaseConfig::class,
+    TestIssueImageUploadUrlUseCaseConfig::class,
+    TestConfirmImageUploadUseCaseConfig::class,
+    TestPlaceParfaitImageUseCaseConfig::class,
+    TestUpdateParfaitImageUseCaseConfig::class,
+    TestUpdateParfaitImagesUseCaseConfig::class,
+    TestUpdateParfaitImageBorderUseCaseConfig::class,
+    TestDeleteParfaitImageUseCaseConfig::class,
+    TestDeviceTokenUseCaseConfig::class,
+    TestRotateParfaitCanvasesUseCaseConfig::class,
+    TestChangeParfaitBackgroundUseCaseConfig::class,
 )
 class SecurityConfigIntegrationTest {
     @Autowired
@@ -61,6 +102,9 @@ class SecurityConfigIntegrationTest {
                 ): Long? = null
 
                 override fun findGlobalNicknameById(memberId: Long): String? = if (memberId == 1L) "테스트" else null
+
+                override fun findAccountById(memberId: Long): MemberAccount? =
+                    if (memberId == 1L) MemberAccount(LoginProvider.KAKAO, "테스트") else null
             }
     }
 
@@ -81,6 +125,23 @@ class SecurityConfigIntegrationTest {
     fun `swagger-ui html 경로는 토큰 없이 통과한다`() {
         mockMvc.get("/swagger-ui.html").andExpect {
             status { is3xxRedirection() }
+        }
+    }
+
+    @Test
+    fun `헬스체크 엔드포인트는 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc.get("/health").andExpect {
+            status { isOk() }
+        }
+    }
+
+    @Test
+    fun `랜딩 정적 에셋(assets 하위 경로)은 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc.get("/assets/dot.svg").andExpect {
+            status { isOk() }
+        }
+        mockMvc.get("/assets/icon-512.png").andExpect {
+            status { isOk() }
         }
     }
 
@@ -106,7 +167,7 @@ class SecurityConfigIntegrationTest {
 
     @Test
     fun `존재하지 않는 회원의 토큰이면 401과 MEMBER_NOT_FOUND로 응답한다`() {
-        val token = tokenIssuePort.createAccessToken(memberId = 999L)
+        val token = tokenIssuePort.createAccessToken(memberId = 999L, sessionId = "integration-session")
 
         mockMvc
             .get("/test/protected") {
@@ -119,7 +180,7 @@ class SecurityConfigIntegrationTest {
 
     @Test
     fun `존재하는 회원의 유효한 토큰이면 인증에 성공해 200을 응답한다`() {
-        val token = tokenIssuePort.createAccessToken(memberId = 1L)
+        val token = tokenIssuePort.createAccessToken(memberId = 1L, sessionId = "integration-session")
 
         mockMvc
             .get("/test/protected") {
@@ -138,6 +199,113 @@ class SecurityConfigIntegrationTest {
                 content = """{"idToken":"dummy","nonce":"dummy"}"""
             }.andExpect {
                 status { isOk() }
+            }
+    }
+
+    @Test
+    fun `애플 로그인 엔드포인트는 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc
+            .post("/api/v1/auth/apple") {
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"identityToken":"dummy","nonce":"dummy"}"""
+            }.andExpect {
+                status { isOk() }
+            }
+    }
+
+    @Test
+    fun `회원가입 엔드포인트는 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc
+            .post("/api/v1/auth/signup") {
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"registrationToken":"dummy","agreements":[{"termsId":1,"agreed":true}]}"""
+            }.andExpect {
+                status { isCreated() }
+            }
+    }
+
+    @Test
+    fun `재발급 엔드포인트는 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc
+            .post("/api/v1/auth/reissue") {
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"refreshToken":"dummy"}"""
+            }.andExpect {
+                status { isOk() }
+            }
+    }
+
+    @Test
+    fun `약관 목록 엔드포인트는 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc.get("/api/v1/policies").andExpect {
+            status { isOk() }
+        }
+    }
+
+    @Test
+    fun `캔버스 회전 테스트 엔드포인트는 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc.post("/api/v1/test/parfait-canvas/rotate").andExpect {
+            status { isOk() }
+        }
+    }
+
+    @Test
+    fun `Android App Links 검증 파일은 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc.get("/.well-known/assetlinks.json").andExpect {
+            status { isOk() }
+        }
+    }
+
+    @Test
+    fun `iOS Universal Links 검증 파일은 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc.get("/.well-known/apple-app-site-association").andExpect {
+            status { isOk() }
+        }
+    }
+
+    @Test
+    fun `딥링크 웹 폴백 페이지는 화이트리스트에 포함되어 토큰 없이 통과한다`() {
+        mockMvc.get("/link").andExpect {
+            status { isOk() }
+        }
+    }
+
+    @Test
+    fun `로그아웃 엔드포인트는 화이트리스트가 아니라 유효한 토큰이 있어야 204를 응답한다`() {
+        val token = tokenIssuePort.createAccessToken(memberId = 1L, sessionId = "integration-session")
+
+        mockMvc
+            .post("/api/v1/auth/logout") {
+                header("Authorization", "Bearer $token")
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"refreshToken":"refresh-token"}"""
+            }.andExpect {
+                status { isNoContent() }
+            }
+    }
+
+    @Test
+    fun `로그아웃 엔드포인트는 위조된 토큰이면 401과 INVALID_TOKEN으로 응답한다`() {
+        mockMvc
+            .post("/api/v1/auth/logout") {
+                header("Authorization", "Bearer not-a-valid-jwt")
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"refreshToken":"refresh-token"}"""
+            }.andExpect {
+                status { isUnauthorized() }
+                jsonPath("$.code") { value("INVALID_TOKEN") }
+            }
+    }
+
+    @Test
+    fun `로그아웃 엔드포인트는 Authorization 헤더가 없으면 401과 UNAUTHORIZED로 응답한다`() {
+        mockMvc
+            .post("/api/v1/auth/logout") {
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"refreshToken":"refresh-token"}"""
+            }.andExpect {
+                status { isUnauthorized() }
+                jsonPath("$.code") { value("UNAUTHORIZED") }
             }
     }
 }

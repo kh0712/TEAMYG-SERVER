@@ -1,0 +1,369 @@
+package parfait.core.parfaitimage.service
+
+import io.kotest.matchers.shouldBe
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import io.mockk.verifyOrder
+import org.junit.jupiter.api.Test
+import parfait.core.exception.BusinessException
+import parfait.core.image.domain.ImageMeta
+import parfait.core.image.domain.ImageStatus
+import parfait.core.image.domain.ImageType
+import parfait.core.image.exception.ImageErrorCode
+import parfait.core.image.port.out.ImageMetaQueryPort
+import parfait.core.image.port.out.ImageMetaSavePort
+import parfait.core.parfait.domain.Parfait
+import parfait.core.parfait.domain.ParfaitStatus
+import parfait.core.parfait.exception.ParfaitErrorCode
+import parfait.core.parfait.port.out.ParfaitQueryPort
+import parfait.core.parfait.service.ParfaitVersionService
+import parfait.core.parfaitgroup.application.port.out.ParfaitGroupMemberQueryPort
+import parfait.core.parfaitgroup.domain.ParfaitGroupError
+import parfait.core.parfaitgroup.domain.ParfaitGroupException
+import parfait.core.parfaitgroup.domain.ParfaitGroupMember
+import parfait.core.parfaitimage.domain.BorderType
+import parfait.core.parfaitimage.domain.ParfaitImage
+import parfait.core.parfaitimage.exception.ParfaitImageErrorCode
+import parfait.core.parfaitimage.port.`in`.PlaceParfaitImageCommand
+import parfait.core.parfaitimage.port.out.ParfaitImageQueryPort
+import parfait.core.parfaitimage.port.out.ParfaitImageSavePort
+import java.time.LocalDate
+import java.time.LocalDateTime
+import kotlin.test.assertFailsWith
+
+class PlaceParfaitImageServiceTest {
+    private val parfaitGroupMemberQueryPort = mockk<ParfaitGroupMemberQueryPort>()
+    private val parfaitQueryPort = mockk<ParfaitQueryPort>()
+    private val imageMetaQueryPort = mockk<ImageMetaQueryPort>()
+    private val imageMetaSavePort = mockk<ImageMetaSavePort>()
+    private val parfaitImageQueryPort = mockk<ParfaitImageQueryPort>()
+    private val parfaitImageSavePort = mockk<ParfaitImageSavePort>()
+    private val toppingPlacedNotifier = mockk<parfait.core.notification.service.ToppingPlacedNotifier>(relaxed = true)
+    private val parfaitVersionService = mockk<ParfaitVersionService>(relaxed = true)
+    private val service =
+        PlaceParfaitImageService(
+            parfaitGroupMemberQueryPort = parfaitGroupMemberQueryPort,
+            parfaitQueryPort = parfaitQueryPort,
+            imageMetaQueryPort = imageMetaQueryPort,
+            imageMetaSavePort = imageMetaSavePort,
+            parfaitImageQueryPort = parfaitImageQueryPort,
+            parfaitImageSavePort = parfaitImageSavePort,
+            toppingPlacedNotifier = toppingPlacedNotifier,
+            parfaitVersionService = parfaitVersionService,
+        )
+
+    private val groupMember =
+        ParfaitGroupMember.reconstitute(
+            id = 10L,
+            parfaitGroupId = 1L,
+            memberId = 42L,
+            groupNickname = "연경이",
+            joinedAt = LocalDateTime.now(),
+        )
+
+    private fun activeParfait(status: ParfaitStatus = ParfaitStatus.ACTIVE): Parfait =
+        Parfait.reconstitute(
+            id = 5L,
+            parfaitGroupId = 1L,
+            parfaitDate = LocalDate.of(2026, 7, 9),
+            status = status,
+            backgroundType = null,
+            backgroundValue = null,
+            createdAt = LocalDateTime.now(),
+            updatedAt = LocalDateTime.now(),
+        )
+
+    private fun confirmedImage(): ImageMeta =
+        ImageMeta.reconstitute(
+            id = 77L,
+            url = "https://s3.example/nukki/user42/uuid.png",
+            uploadedByMemberId = 42L,
+            imageType = ImageType.NUKKI,
+            status = ImageStatus.COMPLETED,
+            referenceCount = 0,
+            createdAt = LocalDateTime.now(),
+            updatedAt = LocalDateTime.now(),
+        )
+
+    private fun command(
+        borderType: BorderType = BorderType.NONE,
+        borderColor: String? = null,
+        borderWidth: Double? = null,
+    ) = PlaceParfaitImageCommand(
+        memberId = 42L,
+        groupId = 1L,
+        parfaitId = 5L,
+        imageId = 77L,
+        positionX = 120.5,
+        positionY = 340.2,
+        positionZ = 1,
+        scale = 1.0,
+        rotation = 0.0,
+        borderType = borderType,
+        borderColor = borderColor,
+        borderWidth = borderWidth,
+    )
+
+    private fun stubHappyPathPrerequisites() {
+        every { parfaitGroupMemberQueryPort.findByGroupIdAndMemberId(1L, 42L) } returns groupMember
+        every { parfaitQueryPort.findByIdAndGroupId(5L, 1L) } returns activeParfait()
+        every { imageMetaQueryPort.findById(77L) } returns confirmedImage()
+        every { imageMetaSavePort.save(any()) } answers { firstArg() }
+        every { parfaitImageSavePort.save(any()) } answers {
+            val saved = firstArg<ParfaitImage>()
+            if (saved.id != null) {
+                saved
+            } else {
+                ParfaitImage.reconstitute(
+                    id = 201L,
+                    parfaitId = saved.parfaitId,
+                    imageMetaId = saved.imageMetaId,
+                    placedByGroupMemberId = saved.placedByGroupMemberId,
+                    imageUrl = saved.imageUrl,
+                    positionX = saved.positionX,
+                    positionY = saved.positionY,
+                    positionZ = saved.positionZ,
+                    scale = saved.scale,
+                    rotation = saved.rotation,
+                    borderType = saved.borderType,
+                    borderColor = saved.borderColor,
+                    borderWidth = saved.borderWidth,
+                    createdAt = saved.createdAt,
+                    updatedAt = saved.updatedAt,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `처음 배치하면 신규로 저장하고 배치 결과를 반환한다`() {
+        stubHappyPathPrerequisites()
+        every { parfaitImageQueryPort.findByParfaitIdAndImageMetaId(5L, 77L) } returns null
+
+        val result = service.place(command())
+
+        result.imageId shouldBe 77L
+        result.imageUrl shouldBe "https://s3.example/nukki/user42/uuid.png"
+        result.positionX shouldBe 120.5
+        result.placedBy.groupMemberId shouldBe 10L
+        result.placedBy.nickname shouldBe "연경이"
+        verify { imageMetaSavePort.save(match { it.referenceCount == 1L }) }
+    }
+
+    @Test
+    fun `이미 배치된 이미지를 다시 확정하면 기존 배치를 갱신한다`() {
+        stubHappyPathPrerequisites()
+        val existing =
+            ParfaitImage.reconstitute(
+                id = 201L,
+                parfaitId = 5L,
+                imageMetaId = 77L,
+                placedByGroupMemberId = 99L,
+                imageUrl = "https://s3.example/nukki/user42/uuid.png",
+                positionX = 0.0,
+                positionY = 0.0,
+                positionZ = 0,
+                scale = 1.0,
+                rotation = 0.0,
+                borderType = BorderType.NONE,
+                borderColor = null,
+                borderWidth = null,
+                createdAt = LocalDateTime.now(),
+                updatedAt = LocalDateTime.now(),
+            )
+        every { parfaitImageQueryPort.findByParfaitIdAndImageMetaId(5L, 77L) } returns existing
+
+        val result = service.place(command())
+
+        result.parfaitImageId shouldBe 201L
+        result.positionX shouldBe 120.5
+        result.placedBy.groupMemberId shouldBe 10L
+        verify(exactly = 0) { imageMetaSavePort.save(any()) }
+    }
+
+    @Test
+    fun `그룹에 참여하지 않았으면 GROUP_NOT_JOINED 예외를 던진다`() {
+        every { parfaitGroupMemberQueryPort.findByGroupIdAndMemberId(1L, 42L) } returns null
+
+        val exception = assertFailsWith<ParfaitGroupException> { service.place(command()) }
+        exception.error shouldBe ParfaitGroupError.GROUP_NOT_JOINED
+    }
+
+    @Test
+    fun `그룹 소속의 파르페가 아니면 PARFAIT_NOT_FOUND 예외를 던진다`() {
+        every { parfaitGroupMemberQueryPort.findByGroupIdAndMemberId(1L, 42L) } returns groupMember
+        every { parfaitQueryPort.findByIdAndGroupId(5L, 1L) } returns null
+
+        val exception = assertFailsWith<BusinessException> { service.place(command()) }
+        exception.errorCode shouldBe ParfaitImageErrorCode.PARFAIT_NOT_FOUND
+    }
+
+    @Test
+    fun `이미 마감된 파르페면 PARFAIT_ALREADY_CLOSED 예외를 던진다`() {
+        every { parfaitGroupMemberQueryPort.findByGroupIdAndMemberId(1L, 42L) } returns groupMember
+        every { parfaitQueryPort.findByIdAndGroupId(5L, 1L) } returns activeParfait(status = ParfaitStatus.CLOSED)
+
+        val exception = assertFailsWith<BusinessException> { service.place(command()) }
+        exception.errorCode shouldBe ParfaitErrorCode.PARFAIT_ALREADY_CLOSED
+    }
+
+    @Test
+    fun `존재하지 않는 이미지면 IMAGE_NOT_FOUND 예외를 던진다`() {
+        every { parfaitGroupMemberQueryPort.findByGroupIdAndMemberId(1L, 42L) } returns groupMember
+        every { parfaitQueryPort.findByIdAndGroupId(5L, 1L) } returns activeParfait()
+        every { imageMetaQueryPort.findById(77L) } returns null
+
+        val exception = assertFailsWith<BusinessException> { service.place(command()) }
+        exception.errorCode shouldBe ImageErrorCode.IMAGE_NOT_FOUND
+    }
+
+    @Test
+    fun `아직 확인되지 않은(PENDING) 이미지면 IMAGE_NOT_CONFIRMED 예외를 던진다`() {
+        every { parfaitGroupMemberQueryPort.findByGroupIdAndMemberId(1L, 42L) } returns groupMember
+        every { parfaitQueryPort.findByIdAndGroupId(5L, 1L) } returns activeParfait()
+        every { imageMetaQueryPort.findById(77L) } returns
+            ImageMeta.reconstitute(
+                id = 77L,
+                url = "https://s3.example/nukki/user42/uuid.png",
+                uploadedByMemberId = 42L,
+                imageType = ImageType.NUKKI,
+                status = ImageStatus.PENDING,
+                referenceCount = 0,
+                createdAt = LocalDateTime.now(),
+                updatedAt = LocalDateTime.now(),
+            )
+
+        val exception = assertFailsWith<BusinessException> { service.place(command()) }
+        exception.errorCode shouldBe ParfaitImageErrorCode.IMAGE_NOT_CONFIRMED
+    }
+
+    @Test
+    fun `SOLID 테두리인데 색상이나 두께가 없으면 INVALID_BORDER 예외를 던진다`() {
+        stubHappyPathPrerequisites()
+        every { parfaitImageQueryPort.findByParfaitIdAndImageMetaId(5L, 77L) } returns null
+
+        val exception =
+            assertFailsWith<BusinessException> {
+                service.place(command(borderType = BorderType.SOLID, borderColor = null, borderWidth = null))
+            }
+        exception.errorCode shouldBe ParfaitImageErrorCode.INVALID_BORDER
+    }
+
+    @Test
+    fun `신규 등록이면 토핑 알림 notifier 를 1회 호출한다`() {
+        stubHappyPathPrerequisites()
+        every { parfaitImageQueryPort.findByParfaitIdAndImageMetaId(5L, 77L) } returns null
+
+        service.place(command())
+
+        verify(exactly = 1) {
+            toppingPlacedNotifier.notify(
+                match {
+                    it.groupId == 1L &&
+                        it.parfaitId == 5L &&
+                        it.parfaitDate == java.time.LocalDate.of(2026, 7, 9) &&
+                        it.actorMemberId == 42L
+                },
+                any(),
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `재배치면 토핑 알림 notifier 를 호출하지 않는다`() {
+        every { parfaitGroupMemberQueryPort.findByGroupIdAndMemberId(1L, 42L) } returns groupMember
+        every { parfaitQueryPort.findByIdAndGroupId(5L, 1L) } returns activeParfait()
+        every { imageMetaQueryPort.findById(77L) } returns confirmedImage()
+        val existing = mockk<ParfaitImage>(relaxed = true)
+        every { existing.reposition(any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns existing
+        every { parfaitImageQueryPort.findByParfaitIdAndImageMetaId(5L, 77L) } returns existing
+        every { parfaitImageSavePort.save(any()) } answers { firstArg() }
+
+        service.place(command())
+
+        verify(exactly = 0) { toppingPlacedNotifier.notify(any(), any(), any()) }
+    }
+
+    @Test
+    fun `배치에 성공하면 캔버스 version 을 올린다`() {
+        stubHappyPathPrerequisites()
+        every { parfaitImageQueryPort.findByParfaitIdAndImageMetaId(5L, 77L) } returns null
+
+        service.place(command())
+
+        verify(exactly = 1) { parfaitVersionService.bump(5L) }
+    }
+
+    @Test
+    fun `이미 배치된 이미지를 다시 확정해도 캔버스 version 을 올린다`() {
+        stubHappyPathPrerequisites()
+        every { parfaitImageQueryPort.findByParfaitIdAndImageMetaId(5L, 77L) } returns
+            ParfaitImage.reconstitute(
+                id = 201L,
+                parfaitId = 5L,
+                imageMetaId = 77L,
+                placedByGroupMemberId = 99L,
+                imageUrl = "https://s3.example/nukki/user42/uuid.png",
+                positionX = 0.0,
+                positionY = 0.0,
+                positionZ = 0,
+                scale = 1.0,
+                rotation = 0.0,
+                borderType = BorderType.NONE,
+                borderColor = null,
+                borderWidth = null,
+                createdAt = LocalDateTime.now(),
+                updatedAt = LocalDateTime.now(),
+            )
+
+        service.place(command())
+
+        verify(exactly = 1) { parfaitVersionService.bump(5L) }
+    }
+
+    @Test
+    fun `캔버스 version 은 parfait_image 저장보다 먼저 올린다 (FK 공유 락 승격 데드락 방지)`() {
+        stubHappyPathPrerequisites()
+        every { parfaitImageQueryPort.findByParfaitIdAndImageMetaId(5L, 77L) } returns null
+
+        service.place(command())
+
+        verifyOrder {
+            parfaitVersionService.bump(5L)
+            parfaitImageSavePort.save(any())
+        }
+    }
+
+    @Test
+    fun `그룹에 참여하지 않았으면 캔버스 version 을 올리지 않는다`() {
+        every { parfaitGroupMemberQueryPort.findByGroupIdAndMemberId(1L, 42L) } returns null
+
+        assertFailsWith<ParfaitGroupException> { service.place(command()) }
+
+        verify(exactly = 0) { parfaitVersionService.bump(any()) }
+    }
+
+    @Test
+    fun `마감된 파르페면 캔버스 version 을 올리지 않는다`() {
+        every { parfaitGroupMemberQueryPort.findByGroupIdAndMemberId(1L, 42L) } returns groupMember
+        every { parfaitQueryPort.findByIdAndGroupId(5L, 1L) } returns activeParfait(status = ParfaitStatus.CLOSED)
+
+        assertFailsWith<BusinessException> { service.place(command()) }
+
+        verify(exactly = 0) { parfaitVersionService.bump(any()) }
+    }
+
+    @Test
+    fun `테두리 검증에 실패하면 캔버스 version 을 올리지 않는다`() {
+        stubHappyPathPrerequisites()
+        every { parfaitImageQueryPort.findByParfaitIdAndImageMetaId(5L, 77L) } returns null
+
+        assertFailsWith<BusinessException> {
+            service.place(command(borderType = BorderType.SOLID, borderColor = null, borderWidth = null))
+        }
+
+        verify(exactly = 0) { parfaitVersionService.bump(any()) }
+    }
+}
