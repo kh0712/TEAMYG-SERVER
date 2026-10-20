@@ -107,6 +107,23 @@ class FlywayMigrationTest {
         }
     }
 
+    @Test
+    fun `V20은 베이스 URL 끝에 슬래시가 있어도 이중 슬래시 없이 옮긴다`() {
+        migrate(mysql.databaseName, target = MigrationVersion.fromVersion("19"))
+        seedImageUrls(mysql.databaseName)
+
+        migrate(mysql.databaseName, imageBaseUrl = "$IMAGE_BASE_URL/")
+
+        connect(mysql.databaseName).use { connection ->
+            connection.query("SELECT url FROM image_meta WHERE id = 1") shouldBe
+                listOf("$IMAGE_BASE_URL/nukki/user1/a.png")
+            connection.query("SELECT image_url FROM parfait_image") shouldBe
+                listOf("$IMAGE_BASE_URL/nukki/user1/a.png")
+            connection.query("SELECT background_value FROM parfait WHERE id = 2") shouldBe
+                listOf("$IMAGE_BASE_URL/background/user1/c.jpg")
+        }
+    }
+
     /** V15까지 적용한 뒤 운영에서 관측된 드리프트를 얹은 DB를 만든다. */
     private fun driftedDatabase(name: String): String {
         connect(mysql.databaseName).use { it.createStatement().execute("CREATE DATABASE $name") }
@@ -225,12 +242,13 @@ class FlywayMigrationTest {
     private fun migrate(
         database: String,
         target: MigrationVersion = MigrationVersion.LATEST,
+        imageBaseUrl: String = IMAGE_BASE_URL,
     ): Int =
         Flyway
             .configure()
             .dataSource(jdbcUrl(database), ROOT_USER, mysql.password)
             .locations("classpath:db/migration")
-            .placeholders(mapOf("image_base_url" to IMAGE_BASE_URL))
+            .placeholders(mapOf("image_base_url" to imageBaseUrl))
             .target(target)
             .load()
             .migrate()
