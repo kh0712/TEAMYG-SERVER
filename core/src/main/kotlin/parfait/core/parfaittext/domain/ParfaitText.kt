@@ -21,6 +21,50 @@ class ParfaitText private constructor(
 ) {
     fun requireId(): Long = requireNotNull(id) { "저장된 텍스트 배치의 id가 필요합니다" }
 
+    fun update(
+        text: String? = null,
+        positionX: Double? = null,
+        positionY: Double? = null,
+        positionZ: Int? = null,
+        scale: Double? = null,
+        rotation: Double? = null,
+        color: String? = null,
+        fontSize: Double? = null,
+        now: LocalDateTime = LocalDateTime.now(),
+    ): ParfaitText {
+        val updatedText = text ?: this.text
+        val updatedPositionX = positionX ?: this.positionX
+        val updatedPositionY = positionY ?: this.positionY
+        val updatedScale = scale ?: this.scale
+        val updatedRotation = rotation ?: this.rotation
+        val updatedColor = color ?: this.color
+        val updatedFontSize = fontSize ?: this.fontSize
+        validate(
+            updatedText,
+            updatedPositionX,
+            updatedPositionY,
+            updatedScale,
+            updatedRotation,
+            updatedColor,
+            updatedFontSize,
+        )
+        return ParfaitText(
+            id = id,
+            parfaitId = parfaitId,
+            placedByGroupMemberId = placedByGroupMemberId,
+            text = updatedText,
+            positionX = updatedPositionX,
+            positionY = updatedPositionY,
+            positionZ = positionZ ?: this.positionZ,
+            scale = updatedScale,
+            rotation = updatedRotation,
+            color = updatedColor,
+            fontSize = updatedFontSize,
+            createdAt = createdAt,
+            updatedAt = now,
+        )
+    }
+
     companion object {
         fun place(
             parfaitId: Long,
@@ -35,22 +79,7 @@ class ParfaitText private constructor(
             fontSize: Double,
             now: LocalDateTime = LocalDateTime.now(),
         ): ParfaitText {
-            if (text.isBlank() || text.length > 2000) {
-                throw BusinessException(ParfaitTextErrorCode.INVALID_TEXT)
-            }
-            if (
-                color.isBlank() ||
-                color.length > 20 ||
-                !positionX.isFinite() ||
-                !positionY.isFinite() ||
-                !rotation.isFinite() ||
-                !scale.isFinite() ||
-                scale <= 0 ||
-                !fontSize.isFinite() ||
-                fontSize <= 0
-            ) {
-                throw BusinessException(ParfaitTextErrorCode.INVALID_TEXT_STYLE)
-            }
+            validate(text, positionX, positionY, scale, rotation, color, fontSize)
             return ParfaitText(
                 id = null,
                 parfaitId = parfaitId,
@@ -98,5 +127,32 @@ class ParfaitText private constructor(
                 createdAt = createdAt,
                 updatedAt = updatedAt,
             )
+
+        private fun validate(
+            text: String,
+            positionX: Double,
+            positionY: Double,
+            scale: Double,
+            rotation: Double,
+            color: String,
+            fontSize: Double,
+        ) {
+            if (text.isBlank() || text.length > 2000) {
+                throw BusinessException(ParfaitTextErrorCode.INVALID_TEXT)
+            }
+            if (
+                color.isBlank() ||
+                color.length > 20 ||
+                !positionX.isFinite() ||
+                !positionY.isFinite() ||
+                !rotation.isFinite() ||
+                !scale.isFinite() ||
+                scale <= 0 ||
+                !fontSize.isFinite() ||
+                fontSize <= 0
+            ) {
+                throw BusinessException(ParfaitTextErrorCode.INVALID_TEXT_STYLE)
+            }
+        }
     }
 }

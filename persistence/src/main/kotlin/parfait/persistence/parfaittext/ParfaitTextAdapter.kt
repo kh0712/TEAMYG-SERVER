@@ -2,6 +2,7 @@ package parfait.persistence.parfaittext
 
 import org.springframework.stereotype.Component
 import parfait.core.parfaittext.domain.ParfaitText
+import parfait.core.parfaittext.port.out.ParfaitTextDeletePort
 import parfait.core.parfaittext.port.out.ParfaitTextQueryPort
 import parfait.core.parfaittext.port.out.ParfaitTextSavePort
 import parfait.persistence.repository.ParfaitTextRepository
@@ -11,7 +12,15 @@ import parfait.persistence.entity.ParfaitText as ParfaitTextEntity
 class ParfaitTextAdapter(
     private val parfaitTextRepository: ParfaitTextRepository,
 ) : ParfaitTextQueryPort,
-    ParfaitTextSavePort {
+    ParfaitTextSavePort,
+    ParfaitTextDeletePort {
+    override fun findById(parfaitTextId: Long): ParfaitText? =
+        parfaitTextRepository.findById(parfaitTextId).orElse(null)?.toDomain()
+
+    override fun deleteById(parfaitTextId: Long) {
+        parfaitTextRepository.deleteById(parfaitTextId)
+    }
+
     override fun findAllByParfaitId(parfaitId: Long): List<ParfaitText> =
         parfaitTextRepository.findAllByParfaitIdOrderByPositionZAscIdAsc(parfaitId).map { it.toDomain() }
 

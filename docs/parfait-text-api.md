@@ -27,6 +27,55 @@
 
 성공하면 201과 기존 `ApiResponse` 형식으로 `parfaitTextId`, 요청한 텍스트·스타일, `placedBy`, `createdAt`을 반환한다. 같은 텍스트를 여러 번 요청해도 각각 독립된 배치로 저장한다.
 
+## 텍스트 수정
+
+`PATCH /api/v1/groups/{groupId}/parfaits/{parfaitId}/texts/{parfaitTextId}`
+
+이미지 수정과 동일하게 작성자 본인만 ACTIVE 파르페의 텍스트를 수정할 수 있다. 저장 시 받는 모든 필드를 부분 수정할 수 있다. 생략하거나 `null`로 보낸 필드는 기존 값을 유지한다. 내용과 스타일은 저장 시와 동일하게 검증한다.
+
+```json
+{
+  "text": "수정한 텍스트",
+  "positionX": 0.0,
+  "color": "#FFFFFF",
+  "scale": 2.0
+}
+```
+
+성공하면 200과 기존 `ApiResponse` 형식으로 다음 `data`를 반환한다. 배치자와 생성 시각은 유지한다.
+
+```json
+{
+  "parfaitTextId": 301,
+  "text": "수정한 텍스트",
+  "positionX": 0.0,
+  "positionY": 340.2,
+  "positionZ": 2,
+  "scale": 2.0,
+  "rotation": -30.0,
+  "color": "#FFFFFF",
+  "fontSize": 16.0
+}
+```
+
+## 텍스트 삭제
+
+`DELETE /api/v1/groups/{groupId}/parfaits/{parfaitId}/texts/{parfaitTextId}`
+
+작성자 본인만 ACTIVE 파르페의 텍스트를 삭제할 수 있다. 요청 본문은 필요 없다. 이미지 삭제와 동일하게 성공 시 200과 다음 응답을 반환한다.
+
+```json
+{
+  "success": true,
+  "code": "OK",
+  "message": "요청이 성공적으로 처리되었습니다",
+  "data": null,
+  "errorDetail": null
+}
+```
+
+수정·삭제 시 존재하지 않거나 경로의 파르페와 다른 텍스트는 404 `PARFAIT_TEXT_NOT_FOUND`, 작성자가 아니거나 그룹에서 나간 회원은 403 `PARFAIT_TEXT_NOT_OWNED`로 응답한다. 파르페가 해당 그룹에 없으면 404 `PARFAIT_NOT_FOUND`, 마감됐으면 409 `PARFAIT_ALREADY_CLOSED`로 응답한다. 수정 내용이 잘못됐으면 400 `INVALID_TEXT` 또는 `INVALID_TEXT_STYLE`로 응답한다.
+
 ## 파르페 조회
 
 다음 기존 조회 API의 응답에 `texts`가 추가된다.
@@ -37,7 +86,7 @@
 
 `images`와 `texts`를 함께 사용하여 캔버스를 그린다. `texts`의 각 원소는 저장 응답과 같은 필드를 포함한다. `placedBy`는 이미지와 동일하게 `groupMemberId`, `nickname`, `nameTagChip`, `ownerType`을 포함한다. 텍스트가 없으면 기존 `images` 규칙과 동일하게 `texts: null`을 반환한다.
 
-텍스트 저장도 파르페 버전을 올리므로 v2 조회의 ETag가 갱신된다. 텍스트만 있는 파르페도 마감 시 CLOSED로 남는다. 과거 목록의 `imageCount`는 기존 의미대로 이미지 수만 센다.
+텍스트 저장·수정·삭제는 파르페 버전을 올리므로 v2 조회의 ETag가 갱신된다. 텍스트만 있는 파르페도 마감 시 CLOSED로 남는다. 과거 목록의 `imageCount`는 기존 의미대로 이미지 수만 센다.
 
 ## DDL
 

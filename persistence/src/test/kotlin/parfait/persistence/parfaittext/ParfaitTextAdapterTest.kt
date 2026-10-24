@@ -143,4 +143,62 @@ class ParfaitTextAdapterTest {
         adapter.findAllByParfaitId(parfaitId) shouldBe emptyList()
         adapter.existsByParfaitId(parfaitId) shouldBe false
     }
+
+    @Test
+    fun `수정하면 같은 id로 갱신되고 배치자와 생성 시각은 유지된다`() {
+        val (parfaitId, groupMemberId) = fixture("E")
+        val saved = adapter.save(text(parfaitId, groupMemberId))
+        val modifiedAt = saved.createdAt.plusHours(1)
+
+        adapter.save(
+            saved.update(
+                text = "수정한 텍스트",
+                positionX = 0.0,
+                positionY = 10.0,
+                positionZ = 5,
+                scale = 2.0,
+                rotation = 45.0,
+                color = "#FFFFFF",
+                fontSize = 24.0,
+                now = modifiedAt,
+            ),
+        )
+
+        val found = requireNotNull(adapter.findById(saved.requireId()))
+        found.text shouldBe "수정한 텍스트"
+        found.positionX shouldBe 0.0
+        found.positionY shouldBe 10.0
+        found.positionZ shouldBe 5
+        found.scale shouldBe 2.0
+        found.rotation shouldBe 45.0
+        found.color shouldBe "#FFFFFF"
+        found.fontSize shouldBe 24.0
+        found.placedByGroupMemberId shouldBe saved.placedByGroupMemberId
+        found.createdAt shouldBe saved.createdAt
+        found.updatedAt shouldBe modifiedAt
+        adapter.findAllByParfaitId(parfaitId).size shouldBe 1
+    }
+
+    @Test
+    fun `삭제하면 지정한 텍스트만 조회에서 사라진다`() {
+        val (parfaitId, groupMemberId) = fixture("F")
+        val removed = adapter.save(text(parfaitId, groupMemberId))
+        val retained = adapter.save(text(parfaitId, groupMemberId))
+
+        adapter.deleteById(removed.requireId())
+
+        adapter.findById(removed.requireId()) shouldBe null
+        adapter.findAllByParfaitId(parfaitId).map { it.id } shouldBe listOf(retained.id)
+        adapter.existsByParfaitId(parfaitId) shouldBe true
+
+        adapter.deleteById(retained.requireId())
+
+        adapter.findAllByParfaitId(parfaitId) shouldBe emptyList()
+        adapter.existsByParfaitId(parfaitId) shouldBe false
+    }
+
+    @Test
+    fun `존재하지 않는 텍스트 id는 null로 조회된다`() {
+        adapter.findById(-1L) shouldBe null
+    }
 }
