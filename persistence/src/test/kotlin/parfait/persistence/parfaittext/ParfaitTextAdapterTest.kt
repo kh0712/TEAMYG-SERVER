@@ -98,6 +98,8 @@ class ParfaitTextAdapterTest {
             rotation = -30.0,
             color = "#FF5733",
             fontSize = 16.5,
+            isFill = false,
+            isStroke = true,
             now = LocalDateTime.of(2026, 10, 20, 14, 30),
         )
 
@@ -119,6 +121,8 @@ class ParfaitTextAdapterTest {
         found.rotation shouldBe -30.0
         found.color shouldBe "#FF5733"
         found.fontSize shouldBe 16.5
+        found.isFill shouldBe false
+        found.isStroke shouldBe true
         found.createdAt shouldBe saved.createdAt
         found.updatedAt shouldBe saved.updatedAt
         adapter.existsByParfaitId(parfaitId) shouldBe true
@@ -152,7 +156,6 @@ class ParfaitTextAdapterTest {
 
         adapter.save(
             saved.update(
-                text = "수정한 텍스트",
                 positionX = 0.0,
                 positionY = 10.0,
                 positionZ = 5,
@@ -160,12 +163,14 @@ class ParfaitTextAdapterTest {
                 rotation = 45.0,
                 color = "#FFFFFF",
                 fontSize = 24.0,
+                isFill = true,
+                isStroke = false,
                 now = modifiedAt,
             ),
         )
 
         val found = requireNotNull(adapter.findById(saved.requireId()))
-        found.text shouldBe "수정한 텍스트"
+        found.text shouldBe saved.text
         found.positionX shouldBe 0.0
         found.positionY shouldBe 10.0
         found.positionZ shouldBe 5
@@ -173,6 +178,8 @@ class ParfaitTextAdapterTest {
         found.rotation shouldBe 45.0
         found.color shouldBe "#FFFFFF"
         found.fontSize shouldBe 24.0
+        found.isFill shouldBe true
+        found.isStroke shouldBe false
         found.placedByGroupMemberId shouldBe saved.placedByGroupMemberId
         found.createdAt shouldBe saved.createdAt
         found.updatedAt shouldBe modifiedAt

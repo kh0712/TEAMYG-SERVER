@@ -19,7 +19,7 @@ import parfait.http.parfaittext.dto.UpdateParfaitTextResponse
 class UpdateParfaitTextController(
     private val updateParfaitTextUseCase: UpdateParfaitTextUseCase,
 ) {
-    @Operation(summary = "텍스트 내용/위치/크기/각도/색상 수정")
+    @Operation(summary = "텍스트 위치/크기/각도/색상/채움/외곽선 수정")
     @PatchMapping("/{parfaitTextId}")
     fun update(
         authentication: Authentication,

@@ -11,7 +11,6 @@ data class UpdateParfaitTextCommand(
     val groupId: Long,
     val parfaitId: Long,
     val parfaitTextId: Long,
-    val text: String? = null,
     val positionX: Double? = null,
     val positionY: Double? = null,
     val positionZ: Int? = null,
@@ -19,6 +18,8 @@ data class UpdateParfaitTextCommand(
     val rotation: Double? = null,
     val color: String? = null,
     val fontSize: Double? = null,
+    val isFill: Boolean? = null,
+    val isStroke: Boolean? = null,
 )
 
 data class UpdateParfaitTextResult(
@@ -31,4 +32,6 @@ data class UpdateParfaitTextResult(
     val rotation: Double,
     val color: String,
     val fontSize: Double,
+    val isFill: Boolean = false,
+    val isStroke: Boolean = false,
 )

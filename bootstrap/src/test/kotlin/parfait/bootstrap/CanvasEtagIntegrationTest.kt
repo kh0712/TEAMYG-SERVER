@@ -240,9 +240,10 @@ class CanvasEtagIntegrationTest {
                 groupId = f.groupId,
                 parfaitId = parfaitId,
                 parfaitTextId = placed.parfaitTextId,
-                text = "수정한 텍스트",
                 color = "#FFFFFF",
                 scale = 2.0,
+                isFill = false,
+                isStroke = true,
             ),
         )
 
@@ -251,7 +252,9 @@ class CanvasEtagIntegrationTest {
         modified.etag shouldNotBe before.etag
         val text = requireNotNull(modified.body.texts).single()
         text.parfaitTextId shouldBe placed.parfaitTextId
-        text.text shouldBe "수정한 텍스트"
+        text.text shouldBe "원래 텍스트"
+        text.isFill shouldBe false
+        text.isStroke shouldBe true
         text.color shouldBe "#FFFFFF"
         text.scale shouldBe 2.0
         text.fontSize shouldBe 16.0

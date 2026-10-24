@@ -78,6 +78,8 @@ data class TodayParfaitTextResult(
     val fontSize: Double,
     val placedBy: PlacedByResult,
     val createdAt: LocalDateTime,
+    val isFill: Boolean = false,
+    val isStroke: Boolean = false,
 ) {
     companion object {
         fun from(
@@ -94,6 +96,8 @@ data class TodayParfaitTextResult(
                 rotation = text.rotation,
                 color = text.color,
                 fontSize = text.fontSize,
+                isFill = text.isFill,
+                isStroke = text.isStroke,
                 placedBy = placedBy,
                 createdAt = text.createdAt,
             )

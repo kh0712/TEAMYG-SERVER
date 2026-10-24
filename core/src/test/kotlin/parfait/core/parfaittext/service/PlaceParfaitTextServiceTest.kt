@@ -45,6 +45,8 @@ class PlaceParfaitTextServiceTest {
             rotation = -30.0,
             color = "#FF5733",
             fontSize = 16.0,
+            isFill = false,
+            isStroke = true,
         )
 
     private fun parfait(status: ParfaitStatus = ParfaitStatus.ACTIVE): Parfait =
@@ -84,6 +86,8 @@ class PlaceParfaitTextServiceTest {
                 rotation = text.rotation,
                 color = text.color,
                 fontSize = text.fontSize,
+                isFill = text.isFill,
+                isStroke = text.isStroke,
                 createdAt = text.createdAt,
                 updatedAt = text.updatedAt,
             )
@@ -103,6 +107,8 @@ class PlaceParfaitTextServiceTest {
         result.rotation shouldBe command.rotation
         result.color shouldBe command.color
         result.fontSize shouldBe command.fontSize
+        result.isFill shouldBe false
+        result.isStroke shouldBe true
         result.placedBy.groupMemberId shouldBe 10L
         result.placedBy.nickname shouldBe "연경이"
         result.placedBy.ownerType shouldBe OwnerType.ME

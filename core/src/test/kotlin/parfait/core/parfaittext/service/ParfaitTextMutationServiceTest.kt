@@ -8,6 +8,7 @@ import io.mockk.verifyOrder
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.EnumSource
 import parfait.core.exception.BusinessException
 import parfait.core.parfait.domain.Parfait
@@ -100,11 +101,10 @@ class ParfaitTextMutationServiceTest {
     }
 
     @Test
-    fun `내용과 스타일 전체를 수정하고 배치자 및 생성 시각은 유지한다`() {
+    fun `스타일을 수정하고 내용과 배치자 및 생성 시각은 유지한다`() {
         val result =
             updateService.update(
                 command.copy(
-                    text = "바뀐 텍스트",
                     positionX = 10.0,
                     positionY = 20.0,
                     positionZ = 0,
@@ -112,11 +112,13 @@ class ParfaitTextMutationServiceTest {
                     rotation = 0.0,
                     color = "#FFFFFF",
                     fontSize = 24.0,
+                    isFill = false,
+                    isStroke = true,
                 ),
             )
 
         result.parfaitTextId shouldBe 301L
-        result.text shouldBe "바뀐 텍스트"
+        result.text shouldBe existing.text
         result.positionX shouldBe 10.0
         result.positionY shouldBe 20.0
         result.positionZ shouldBe 0
@@ -124,6 +126,8 @@ class ParfaitTextMutationServiceTest {
         result.rotation shouldBe 0.0
         result.color shouldBe "#FFFFFF"
         result.fontSize shouldBe 24.0
+        result.isFill shouldBe false
+        result.isStroke shouldBe true
         verify {
             saves.save(
                 match {
@@ -144,9 +148,9 @@ class ParfaitTextMutationServiceTest {
 
     @Test
     fun `지정한 필드만 수정하고 생략한 값은 유지한다`() {
-        val result = updateService.update(command.copy(text = "수정한 내용", positionX = 0.0))
+        val result = updateService.update(command.copy(positionX = 0.0))
 
-        result.text shouldBe "수정한 내용"
+        result.text shouldBe existing.text
         result.positionX shouldBe 0.0
         result.positionY shouldBe existing.positionY
         result.positionZ shouldBe existing.positionZ
@@ -154,6 +158,8 @@ class ParfaitTextMutationServiceTest {
         result.rotation shouldBe existing.rotation
         result.color shouldBe existing.color
         result.fontSize shouldBe existing.fontSize
+        result.isFill shouldBe existing.isFill
+        result.isStroke shouldBe existing.isStroke
     }
 
     @Test
@@ -249,13 +255,19 @@ class ParfaitTextMutationServiceTest {
         verifyNoWrites()
     }
 
-    @Test
-    fun `공백이나 길이를 초과한 텍스트는 수정 전에 거부한다`() {
-        listOf("", " \n", "가".repeat(2001)).forEach { text ->
-            val exception = assertFailsWith<BusinessException> { updateService.update(command.copy(text = text)) }
-            exception.errorCode shouldBe ParfaitTextErrorCode.INVALID_TEXT
-        }
-        verifyNoWrites()
+    @ParameterizedTest
+    @CsvSource("true,true", "true,false", "false,true", "false,false")
+    fun `채움과 외곽선은 각각 독립적으로 변경할 수 있다`(
+        isFill: Boolean,
+        isStroke: Boolean,
+    ) {
+        every { texts.findById(301L) } returns existing.update(isFill = false, isStroke = true)
+
+        val result = updateService.update(command.copy(isFill = isFill, isStroke = isStroke))
+
+        result.isFill shouldBe isFill
+        result.isStroke shouldBe isStroke
+        result.text shouldBe existing.text
     }
 
     @Test

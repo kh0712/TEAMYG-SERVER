@@ -1,5 +1,6 @@
 package parfait.http.parfait.dto
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import parfait.core.parfait.domain.BackgroundType
 import parfait.core.parfait.domain.OwnerType
 import parfait.core.parfait.domain.ParfaitStatus
@@ -124,6 +125,10 @@ data class TodayParfaitTextResponse(
     val rotation: Double,
     val color: String,
     val fontSize: Double,
+    @get:JsonProperty("isFill")
+    val isFill: Boolean,
+    @get:JsonProperty("isStroke")
+    val isStroke: Boolean,
     val placedBy: PlacedByResponse,
     val createdAt: LocalDateTime,
 ) {
@@ -139,6 +144,8 @@ data class TodayParfaitTextResponse(
                 rotation = result.rotation,
                 color = result.color,
                 fontSize = result.fontSize,
+                isFill = result.isFill,
+                isStroke = result.isStroke,
                 placedBy = PlacedByResponse.from(result.placedBy),
                 createdAt = result.createdAt,
             )

@@ -20,4 +20,6 @@ data class PlaceParfaitTextCommand(
     val rotation: Double,
     val color: String,
     val fontSize: Double,
+    val isFill: Boolean = false,
+    val isStroke: Boolean = false,
 )

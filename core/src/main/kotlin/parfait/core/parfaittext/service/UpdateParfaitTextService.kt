@@ -45,7 +45,6 @@ class UpdateParfaitTextService(
 
         val updated =
             parfaitText.update(
-                text = command.text,
                 positionX = command.positionX,
                 positionY = command.positionY,
                 positionZ = command.positionZ,
@@ -53,6 +52,8 @@ class UpdateParfaitTextService(
                 rotation = command.rotation,
                 color = command.color,
                 fontSize = command.fontSize,
+                isFill = command.isFill,
+                isStroke = command.isStroke,
             )
         // 배치와 동일하게 부모 parfait 행의 락을 자식 변경보다 먼저 얻는다.
         parfaitVersionService.bump(command.parfaitId)
@@ -67,6 +68,8 @@ class UpdateParfaitTextService(
             rotation = saved.rotation,
             color = saved.color,
             fontSize = saved.fontSize,
+            isFill = saved.isFill,
+            isStroke = saved.isStroke,
         )
     }
 }

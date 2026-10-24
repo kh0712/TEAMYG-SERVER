@@ -16,13 +16,14 @@ class ParfaitText private constructor(
     val rotation: Double,
     val color: String,
     val fontSize: Double,
+    val isFill: Boolean,
+    val isStroke: Boolean,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
 ) {
     fun requireId(): Long = requireNotNull(id) { "저장된 텍스트 배치의 id가 필요합니다" }
 
     fun update(
-        text: String? = null,
         positionX: Double? = null,
         positionY: Double? = null,
         positionZ: Int? = null,
@@ -30,9 +31,10 @@ class ParfaitText private constructor(
         rotation: Double? = null,
         color: String? = null,
         fontSize: Double? = null,
+        isFill: Boolean? = null,
+        isStroke: Boolean? = null,
         now: LocalDateTime = LocalDateTime.now(),
     ): ParfaitText {
-        val updatedText = text ?: this.text
         val updatedPositionX = positionX ?: this.positionX
         val updatedPositionY = positionY ?: this.positionY
         val updatedScale = scale ?: this.scale
@@ -40,7 +42,7 @@ class ParfaitText private constructor(
         val updatedColor = color ?: this.color
         val updatedFontSize = fontSize ?: this.fontSize
         validate(
-            updatedText,
+            text,
             updatedPositionX,
             updatedPositionY,
             updatedScale,
@@ -52,7 +54,7 @@ class ParfaitText private constructor(
             id = id,
             parfaitId = parfaitId,
             placedByGroupMemberId = placedByGroupMemberId,
-            text = updatedText,
+            text = text,
             positionX = updatedPositionX,
             positionY = updatedPositionY,
             positionZ = positionZ ?: this.positionZ,
@@ -60,6 +62,8 @@ class ParfaitText private constructor(
             rotation = updatedRotation,
             color = updatedColor,
             fontSize = updatedFontSize,
+            isFill = isFill ?: this.isFill,
+            isStroke = isStroke ?: this.isStroke,
             createdAt = createdAt,
             updatedAt = now,
         )
@@ -77,6 +81,8 @@ class ParfaitText private constructor(
             rotation: Double,
             color: String,
             fontSize: Double,
+            isFill: Boolean = false,
+            isStroke: Boolean = false,
             now: LocalDateTime = LocalDateTime.now(),
         ): ParfaitText {
             validate(text, positionX, positionY, scale, rotation, color, fontSize)
@@ -92,6 +98,8 @@ class ParfaitText private constructor(
                 rotation = rotation,
                 color = color,
                 fontSize = fontSize,
+                isFill = isFill,
+                isStroke = isStroke,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -109,6 +117,8 @@ class ParfaitText private constructor(
             rotation: Double,
             color: String,
             fontSize: Double,
+            isFill: Boolean = false,
+            isStroke: Boolean = false,
             createdAt: LocalDateTime,
             updatedAt: LocalDateTime,
         ): ParfaitText =
@@ -124,6 +134,8 @@ class ParfaitText private constructor(
                 rotation = rotation,
                 color = color,
                 fontSize = fontSize,
+                isFill = isFill,
+                isStroke = isStroke,
                 createdAt = createdAt,
                 updatedAt = updatedAt,
             )

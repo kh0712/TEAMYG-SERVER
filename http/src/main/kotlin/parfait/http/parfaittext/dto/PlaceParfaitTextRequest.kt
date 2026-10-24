@@ -1,5 +1,6 @@
 package parfait.http.parfaittext.dto
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 import parfait.core.parfaittext.port.`in`.PlaceParfaitTextCommand
 
@@ -16,6 +17,14 @@ data class PlaceParfaitTextRequest(
     val color: String,
     @field:Schema(description = "확대 전 기준 폰트 크기 (양수). 표시 크기 = fontSize × scale", example = "16.0")
     val fontSize: Double,
+    @param:JsonProperty("isFill")
+    @get:JsonProperty("isFill")
+    @field:Schema(description = "텍스트 내부 채움 여부 (생략 시 false)")
+    val isFill: Boolean = false,
+    @param:JsonProperty("isStroke")
+    @get:JsonProperty("isStroke")
+    @field:Schema(description = "텍스트 외곽선 표시 여부 (생략 시 false)")
+    val isStroke: Boolean = false,
 ) {
     fun toCommand(
         memberId: Long,
@@ -34,5 +43,7 @@ data class PlaceParfaitTextRequest(
             rotation = rotation,
             color = color,
             fontSize = fontSize,
+            isFill = isFill,
+            isStroke = isStroke,
         )
 }

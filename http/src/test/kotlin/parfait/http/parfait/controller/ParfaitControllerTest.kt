@@ -70,6 +70,8 @@ class ParfaitControllerTest {
         TodayParfaitTextResult(
             parfaitTextId = 301L,
             text = "오늘도 행복한 하루!",
+            isFill = false,
+            isStroke = true,
             positionX = 10.0,
             positionY = 20.0,
             positionZ = 2,
@@ -233,6 +235,8 @@ class ParfaitControllerTest {
                 jsonPath("$.data.texts[0].rotation") { value(-30.0) }
                 jsonPath("$.data.texts[0].color") { value("#FF5733") }
                 jsonPath("$.data.texts[0].fontSize") { value(16.0) }
+                jsonPath("$.data.texts[0].isFill") { value(false) }
+                jsonPath("$.data.texts[0].isStroke") { value(true) }
                 jsonPath("$.data.texts[0].placedBy.ownerType") { value("ME") }
             }
     }

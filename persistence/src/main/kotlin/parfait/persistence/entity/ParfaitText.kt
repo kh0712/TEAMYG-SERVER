@@ -32,6 +32,10 @@ class ParfaitText(
     var color: String,
     @Column(name = "font_size", nullable = false)
     var fontSize: Double,
+    @Column(name = "is_fill", nullable = false)
+    var isFill: Boolean = false,
+    @Column(name = "is_stroke", nullable = false)
+    var isStroke: Boolean = false,
     @Column(name = "created_at", nullable = false)
     var createdAt: LocalDateTime = LocalDateTime.now(),
     @Column(name = "updated_at", nullable = false)

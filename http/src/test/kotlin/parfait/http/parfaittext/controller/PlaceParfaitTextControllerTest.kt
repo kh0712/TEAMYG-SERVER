@@ -63,7 +63,9 @@ class PlaceParfaitTextControllerTest {
           "scale": 1.5,
           "rotation": -30.0,
           "color": "#FF5733",
-          "fontSize": 16.0
+          "fontSize": 16.0,
+          "isFill": false,
+          "isStroke": true
         }
         """.trimIndent()
 
@@ -80,6 +82,8 @@ class PlaceParfaitTextControllerTest {
                 rotation = -30.0,
                 color = "#FF5733",
                 fontSize = 16.0,
+                isFill = false,
+                isStroke = true,
                 placedBy = PlacedByResult(10L, "연경이", NameTagChipType.TYPE6, OwnerType.ME),
                 createdAt = LocalDateTime.of(2026, 10, 20, 14, 30),
             )
@@ -100,6 +104,8 @@ class PlaceParfaitTextControllerTest {
                 jsonPath("$.data.rotation") { value(-30.0) }
                 jsonPath("$.data.color") { value("#FF5733") }
                 jsonPath("$.data.fontSize") { value(16.0) }
+                jsonPath("$.data.isFill") { value(false) }
+                jsonPath("$.data.isStroke") { value(true) }
                 jsonPath("$.data.placedBy.nameTagChip") { value("TYPE6") }
             }
         verify {
@@ -111,6 +117,8 @@ class PlaceParfaitTextControllerTest {
                         it.text == "안녕 파르페!" &&
                         it.color == "#FF5733" &&
                         it.fontSize == 16.0 &&
+                        !it.isFill &&
+                        it.isStroke &&
                         it.positionX == 120.5 &&
                         it.positionY == 340.2 &&
                         it.positionZ == 2 &&
@@ -119,6 +127,47 @@ class PlaceParfaitTextControllerTest {
                 },
             )
         }
+    }
+
+    @Test
+    fun `채움과 외곽선을 생략하면 기본값으로 저장한다`() {
+        every { useCase.place(any()) } returns
+            TodayParfaitTextResult(
+                parfaitTextId = 301L,
+                text = "기본 텍스트",
+                positionX = 0.0,
+                positionY = 0.0,
+                positionZ = 1,
+                scale = 1.0,
+                rotation = 0.0,
+                color = "#FFFFFF",
+                fontSize = 16.0,
+                placedBy = PlacedByResult(10L, "연경이", NameTagChipType.TYPE6, OwnerType.ME),
+                createdAt = LocalDateTime.of(2026, 10, 20, 14, 30),
+            )
+        mockMvc
+            .post("/api/v1/groups/1/parfaits/5/texts") {
+                principal = authentication
+                contentType = MediaType.APPLICATION_JSON
+                content =
+                    """
+                    {
+                      "text": "기본 텍스트",
+                      "positionX": 0.0,
+                      "positionY": 0.0,
+                      "positionZ": 1,
+                      "scale": 1.0,
+                      "rotation": 0.0,
+                      "color": "#FFFFFF",
+                      "fontSize": 16.0
+                    }
+                    """.trimIndent()
+            }.andExpect {
+                status { isCreated() }
+                jsonPath("$.data.isFill") { value(false) }
+                jsonPath("$.data.isStroke") { value(false) }
+            }
+        verify { useCase.place(match { !it.isFill && !it.isStroke }) }
     }
 
     @Test

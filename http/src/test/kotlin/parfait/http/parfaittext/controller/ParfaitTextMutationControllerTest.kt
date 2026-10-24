@@ -53,7 +53,7 @@ class ParfaitTextMutationControllerTest {
     private val result =
         UpdateParfaitTextResult(
             parfaitTextId = 301L,
-            text = "수정한 텍스트",
+            text = "원래 텍스트",
             positionX = 0.0,
             positionY = 10.0,
             positionZ = 3,
@@ -61,6 +61,8 @@ class ParfaitTextMutationControllerTest {
             rotation = 45.0,
             color = "#FFFFFF",
             fontSize = 24.0,
+            isFill = false,
+            isStroke = true,
         )
 
     @BeforeEach
@@ -79,14 +81,15 @@ class ParfaitTextMutationControllerTest {
                 content =
                     """
                     {
-                      "text": "수정한 텍스트",
                       "positionX": 0.0,
                       "positionY": 10.0,
                       "positionZ": 3,
                       "scale": 2.0,
                       "rotation": 45.0,
                       "color": "#FFFFFF",
-                      "fontSize": 24.0
+                      "fontSize": 24.0,
+                      "isFill": false,
+                      "isStroke": true
                     }
                     """.trimIndent()
             }.andExpect {
@@ -94,7 +97,7 @@ class ParfaitTextMutationControllerTest {
                 jsonPath("$.success") { value(true) }
                 jsonPath("$.code") { value("OK") }
                 jsonPath("$.data.parfaitTextId") { value(301) }
-                jsonPath("$.data.text") { value("수정한 텍스트") }
+                jsonPath("$.data.text") { value("원래 텍스트") }
                 jsonPath("$.data.positionX") { value(0.0) }
                 jsonPath("$.data.positionY") { value(10.0) }
                 jsonPath("$.data.positionZ") { value(3) }
@@ -102,6 +105,10 @@ class ParfaitTextMutationControllerTest {
                 jsonPath("$.data.rotation") { value(45.0) }
                 jsonPath("$.data.color") { value("#FFFFFF") }
                 jsonPath("$.data.fontSize") { value(24.0) }
+                jsonPath("$.data.isFill") { value(false) }
+                jsonPath("$.data.isStroke") { value(true) }
+                jsonPath("$.data.fill") { doesNotExist() }
+                jsonPath("$.data.stroke") { doesNotExist() }
             }
         verify {
             updateUseCase.update(
@@ -110,7 +117,6 @@ class ParfaitTextMutationControllerTest {
                     groupId = 1L,
                     parfaitId = 5L,
                     parfaitTextId = 301L,
-                    text = "수정한 텍스트",
                     positionX = 0.0,
                     positionY = 10.0,
                     positionZ = 3,
@@ -118,6 +124,8 @@ class ParfaitTextMutationControllerTest {
                     rotation = 45.0,
                     color = "#FFFFFF",
                     fontSize = 24.0,
+                    isFill = false,
+                    isStroke = true,
                 ),
             )
         }
@@ -129,11 +137,11 @@ class ParfaitTextMutationControllerTest {
             .patch(url) {
                 principal = authentication
                 contentType = MediaType.APPLICATION_JSON
-                content = """{"text":"수정한 텍스트","positionX":null}"""
+                content = """{"positionX":null,"isFill":null,"isStroke":null}"""
             }.andExpect { status { isOk() } }
 
         verify {
-            updateUseCase.update(UpdateParfaitTextCommand(42L, 1L, 5L, 301L, text = "수정한 텍스트"))
+            updateUseCase.update(UpdateParfaitTextCommand(42L, 1L, 5L, 301L))
         }
     }
 
@@ -168,13 +176,29 @@ class ParfaitTextMutationControllerTest {
     }
 
     @Test
-    fun `잘못된 내용이나 스타일은 400과 검증 오류 코드로 응답한다`() {
-        listOf(ParfaitTextErrorCode.INVALID_TEXT, ParfaitTextErrorCode.INVALID_TEXT_STYLE).forEach { error ->
+    fun `잘못된 스타일은 400과 검증 오류 코드로 응답한다`() {
+        listOf(ParfaitTextErrorCode.INVALID_TEXT_STYLE).forEach { error ->
             every { updateUseCase.update(any()) } throws BusinessException(error)
             perform("PATCH").andExpect {
                 status { isBadRequest() }
                 jsonPath("$.code") { value(error.code) }
             }
+        }
+    }
+
+    @Test
+    fun `수정 요청의 text 필드는 무시되어 수정 command에 전달되지 않는다`() {
+        mockMvc
+            .patch(url) {
+                principal = authentication
+                contentType = MediaType.APPLICATION_JSON
+                content = """{"text":"바꾸면 안 되는 내용","isFill":true,"isStroke":false}"""
+            }.andExpect {
+                status { isOk() }
+                jsonPath("$.data.text") { value("원래 텍스트") }
+            }
+        verify {
+            updateUseCase.update(UpdateParfaitTextCommand(42L, 1L, 5L, 301L, isFill = true, isStroke = false))
         }
     }
 

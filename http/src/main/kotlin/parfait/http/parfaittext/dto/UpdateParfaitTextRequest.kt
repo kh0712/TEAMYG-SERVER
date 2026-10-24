@@ -1,9 +1,9 @@
 package parfait.http.parfaittext.dto
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import parfait.core.parfaittext.port.`in`.UpdateParfaitTextCommand
 
 data class UpdateParfaitTextRequest(
-    val text: String? = null,
     val positionX: Double? = null,
     val positionY: Double? = null,
     val positionZ: Int? = null,
@@ -11,6 +11,12 @@ data class UpdateParfaitTextRequest(
     val rotation: Double? = null,
     val color: String? = null,
     val fontSize: Double? = null,
+    @param:JsonProperty("isFill")
+    @get:JsonProperty("isFill")
+    val isFill: Boolean? = null,
+    @param:JsonProperty("isStroke")
+    @get:JsonProperty("isStroke")
+    val isStroke: Boolean? = null,
 ) {
     fun toCommand(
         memberId: Long,
@@ -23,7 +29,6 @@ data class UpdateParfaitTextRequest(
             groupId = groupId,
             parfaitId = parfaitId,
             parfaitTextId = parfaitTextId,
-            text = text,
             positionX = positionX,
             positionY = positionY,
             positionZ = positionZ,
@@ -31,5 +36,7 @@ data class UpdateParfaitTextRequest(
             rotation = rotation,
             color = color,
             fontSize = fontSize,
+            isFill = isFill,
+            isStroke = isStroke,
         )
 }

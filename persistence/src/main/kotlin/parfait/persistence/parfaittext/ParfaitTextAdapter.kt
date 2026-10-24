@@ -40,6 +40,8 @@ class ParfaitTextAdapter(
                     rotation = parfaitText.rotation,
                     color = parfaitText.color,
                     fontSize = parfaitText.fontSize,
+                    isFill = parfaitText.isFill,
+                    isStroke = parfaitText.isStroke,
                     createdAt = parfaitText.createdAt,
                     updatedAt = parfaitText.updatedAt,
                     id = parfaitText.id,
@@ -59,6 +61,8 @@ class ParfaitTextAdapter(
             rotation = rotation,
             color = color,
             fontSize = fontSize,
+            isFill = isFill,
+            isStroke = isStroke,
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
