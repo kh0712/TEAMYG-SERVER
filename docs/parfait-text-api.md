@@ -41,4 +41,4 @@
 
 ## DDL
 
-`persistence/src/main/resources/db/migration/V20__create_parfait_text.sql`에 `parfait_text` 테이블 생성 DDL이 있다. 배포 시 기존 Flyway 설정으로 적용된다. 파르페·배치자 외래 키와 파르페 조회 인덱스를 포함한다.
+`persistence/src/main/resources/db/migration/V21__create_parfait_text.sql`에 `parfait_text` 테이블 생성 DDL이 있다. 배포 시 기존 Flyway 설정으로 적용된다. 파르페·배치자 외래 키와 파르페 조회 인덱스를 포함한다.
