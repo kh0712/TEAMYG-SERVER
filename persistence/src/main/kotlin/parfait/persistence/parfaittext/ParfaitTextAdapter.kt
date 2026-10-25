@@ -21,32 +21,38 @@ class ParfaitTextAdapter(
         parfaitTextRepository.deleteById(parfaitTextId)
     }
 
+    override fun findAllByIds(parfaitTextIds: List<Long>): List<ParfaitText> =
+        parfaitTextRepository.findAllById(parfaitTextIds).map { it.toDomain() }
+
     override fun findAllByParfaitId(parfaitId: Long): List<ParfaitText> =
         parfaitTextRepository.findAllByParfaitIdOrderByPositionZAscIdAsc(parfaitId).map { it.toDomain() }
 
     override fun existsByParfaitId(parfaitId: Long): Boolean = parfaitTextRepository.existsByParfaitId(parfaitId)
 
     override fun save(parfaitText: ParfaitText): ParfaitText =
-        parfaitTextRepository
-            .save(
-                ParfaitTextEntity(
-                    parfaitId = parfaitText.parfaitId,
-                    placedByGroupMemberId = parfaitText.placedByGroupMemberId,
-                    text = parfaitText.text,
-                    positionX = parfaitText.positionX,
-                    positionY = parfaitText.positionY,
-                    positionZ = parfaitText.positionZ,
-                    scale = parfaitText.scale,
-                    rotation = parfaitText.rotation,
-                    color = parfaitText.color,
-                    fontSize = parfaitText.fontSize,
-                    isFill = parfaitText.isFill,
-                    isStroke = parfaitText.isStroke,
-                    createdAt = parfaitText.createdAt,
-                    updatedAt = parfaitText.updatedAt,
-                    id = parfaitText.id,
-                ),
-            ).toDomain()
+        parfaitTextRepository.save(parfaitText.toEntity()).toDomain()
+
+    override fun saveAll(parfaitTexts: List<ParfaitText>): List<ParfaitText> =
+        parfaitTextRepository.saveAll(parfaitTexts.map { it.toEntity() }).map { it.toDomain() }
+
+    private fun ParfaitText.toEntity(): ParfaitTextEntity =
+        ParfaitTextEntity(
+            parfaitId = parfaitId,
+            placedByGroupMemberId = placedByGroupMemberId,
+            text = text,
+            positionX = positionX,
+            positionY = positionY,
+            positionZ = positionZ,
+            scale = scale,
+            rotation = rotation,
+            color = color,
+            fontSize = fontSize,
+            isFill = isFill,
+            isStroke = isStroke,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            id = id,
+        )
 
     private fun ParfaitTextEntity.toDomain(): ParfaitText =
         ParfaitText.reconstitute(
